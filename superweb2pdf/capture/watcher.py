@@ -107,16 +107,19 @@ class _ImageEventHandler(FileSystemEventHandler):
 
         if self._process_fn is None:
             print(f"  (dry-run) {file_path} → {output_pdf}")
-            self._stats["processed"] += 1
+            with self._lock:
+                self._stats["processed"] += 1
             return
 
         try:
             self._process_fn(str(file_path), str(output_pdf))
-            self._stats["processed"] += 1
+            with self._lock:
+                self._stats["processed"] += 1
             if self._verbose:
                 print(f"  ✓ {file_path.name} → {output_pdf.name}", file=sys.stderr)
         except Exception as exc:
-            self._stats["failed"] += 1
+            with self._lock:
+                self._stats["failed"] += 1
             print(f"  ✗ {file_path.name}: {exc}", file=sys.stderr)
 
     def cancel_pending(self) -> None:

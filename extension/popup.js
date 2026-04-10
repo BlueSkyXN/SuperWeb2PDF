@@ -136,10 +136,10 @@ async function handleCaptureFullPage() {
       },
     });
 
-    const { scrollHeight, viewportHeight, viewportWidth } = dims;
-    const totalChunks = Math.ceil(scrollHeight / viewportHeight);
+    const { viewportHeight, viewportWidth } = dims;
+    let currentScrollHeight = dims.scrollHeight;
 
-    setStatus(`Page: ${scrollHeight}px, ${totalChunks} chunks`);
+    setStatus(`Page: ${currentScrollHeight}px, ~${Math.ceil(currentScrollHeight / viewportHeight)} chunks`);
     await sleep(200);
 
     // 2. Scroll to top
@@ -149,12 +149,12 @@ async function handleCaptureFullPage() {
     });
     await sleep(300);
 
-    // 3. Capture each viewport chunk
+    // 3. Capture each viewport chunk (re-measure scrollHeight for lazy content)
     const captures = [];
+    let scrollY = 0;
+    let chunkIndex = 0;
 
-    for (let i = 0; i < totalChunks; i++) {
-      const scrollY = i * viewportHeight;
-
+    while (scrollY < currentScrollHeight) {
       // Scroll to position
       await chrome.scripting.executeScript({
         target: { tabId: tab.id },
@@ -163,13 +163,30 @@ async function handleCaptureFullPage() {
       });
 
       // Wait for lazy-loaded content
-      setStatus(`Scrolling ${i + 1}/${totalChunks}...`);
+      const estTotal = Math.ceil(currentScrollHeight / viewportHeight);
+      setStatus(`Scrolling ${chunkIndex + 1}/${estTotal}...`);
       await sleep(500);
 
+      // Re-measure scrollHeight (page may have grown due to lazy loading)
+      const [{ result: newHeight }] = await chrome.scripting.executeScript({
+        target: { tabId: tab.id },
+        func: () =>
+          Math.max(
+            document.documentElement.scrollHeight,
+            document.body.scrollHeight
+          ),
+      });
+      if (newHeight > currentScrollHeight) {
+        currentScrollHeight = newHeight;
+      }
+
       // Capture current viewport
-      setStatus(`Capturing ${i + 1}/${totalChunks}...`);
+      setStatus(`Capturing ${chunkIndex + 1}/${estTotal}...`);
       const dataURL = await captureVisibleTab();
       captures.push({ dataURL, scrollY });
+
+      scrollY += viewportHeight;
+      chunkIndex++;
     }
 
     // 4. Scroll back to top
@@ -187,14 +204,14 @@ async function handleCaptureFullPage() {
       captures,
       viewportWidth,
       viewportHeight,
-      scrollHeight,
+      currentScrollHeight,
       window.devicePixelRatio || 1
     );
 
     // 6. Download
     setStatus("Downloading...");
     await downloadBlob(stitchedBlob, buildFilename(tab.url));
-    setStatus(`Done! ${totalChunks} chunks stitched.\nSaved to Downloads.`, "success");
+    setStatus(`Done! ${captures.length} chunks stitched.\nSaved to Downloads.`, "success");
   } catch (err) {
     setStatus("Error: " + err.message, "error");
   } finally {
