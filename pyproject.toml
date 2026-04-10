@@ -24,7 +24,7 @@ all = [
 ]
 
 [project.scripts]
-s2p = "superweb2pdf.cli:main"
+superweb2pdf = "superweb2pdf.cli:main"
 
 [tool.setuptools.packages.find]
 include = ["superweb2pdf*"]

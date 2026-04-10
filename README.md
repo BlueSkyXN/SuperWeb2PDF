@@ -1,10 +1,10 @@
-# SuperWeb2PDF (s2p)
+# SuperWeb2PDF
 
 将全页网页截图转换为**智能分页** PDF —— 自动在空白区域分页，避免切断文字和图片。
 
 ## 为什么需要它？
 
-普通的「截图转 PDF」工具要么把整张长图塞进一页，要么按固定高度硬切，经常把段落、表格拦腰斩断。`s2p` 会分析截图中的空白/背景带，在最佳位置分页，输出阅读体验接近原始网页的 PDF。
+普通的「截图转 PDF」工具要么把整张长图塞进一页，要么按固定高度硬切，经常把段落、表格拦腰斩断。`superweb2pdf` 会分析截图中的空白/背景带，在最佳位置分页，输出阅读体验接近原始网页的 PDF。
 
 ## 快速开始
 
@@ -15,13 +15,13 @@ cd SuperWeb2PDF
 pip install -e .
 
 # 最简用法：一张长截图 → PDF
-s2p --image screenshot.png
+superweb2pdf --image screenshot.png
 
 # 多张截图自动拼接 → PDF
-s2p --images "captures/*.png" -o output.pdf
+superweb2pdf --images "captures/*.png" -o output.pdf
 
 # macOS：直接抓取 Chrome 当前标签页
-s2p --current-tab -o page.pdf --open
+superweb2pdf --current-tab -o page.pdf --open
 ```
 
 ## 安装
@@ -52,58 +52,58 @@ pip install -e ".[all]"
 ### 单张截图转 PDF
 
 ```bash
-s2p --image full-page.png
+superweb2pdf --image full-page.png
 # → full-page.pdf（自动命名）
 
-s2p --image full-page.png -o report.pdf --paper letter
+superweb2pdf --image full-page.png -o report.pdf --paper letter
 # → report.pdf，Letter 纸张尺寸
 ```
 
 ### 多张截图拼接
 
 ```bash
-s2p --images "screenshots/page-*.png" -o combined.pdf
+superweb2pdf --images "screenshots/page-*.png" -o combined.pdf
 # 自然排序（page-2.png 排在 page-10.png 之前），拼接后分页
 ```
 
 ### 抓取 Chrome 当前标签页（macOS）
 
 ```bash
-s2p --current-tab -o capture.pdf -v
+superweb2pdf --current-tab -o capture.pdf -v
 # 自动滚动触发懒加载 → 逐屏截图 → 拼接 → 智能分页 → PDF
 ```
 
 ### 自动尺寸模式
 
 ```bash
-s2p --image screenshot.png --auto-size
+superweb2pdf --image screenshot.png --auto-size
 # 每页尺寸与内容完全匹配，不使用固定纸张
 ```
 
 ### 控制宽度与页高
 
 ```bash
-s2p --image wide-page.png --max-width 1200 --max-height 2000
+superweb2pdf --image wide-page.png --max-width 1200 --max-height 2000
 ```
 
 ### 自定义纸张
 
 ```bash
-s2p --image screenshot.png --paper 200x300
+superweb2pdf --image screenshot.png --paper 200x300
 # 200mm × 300mm 自定义纸张
 ```
 
 ### 生成后自动打开（macOS）
 
 ```bash
-s2p --image screenshot.png --open
+superweb2pdf --image screenshot.png --open
 ```
 
 ### 无头浏览器抓取 URL
 
 ```bash
 # 公开页面 — 自动启动 Chromium，滚动触发懒加载，全页截图
-s2p --url https://example.com/article -o article.pdf
+superweb2pdf --url https://example.com/article -o article.pdf
 
 # 需要先安装浏览器：playwright install chromium
 ```
@@ -115,19 +115,19 @@ s2p --url https://example.com/article -o article.pdf
 /Applications/Google\ Chrome.app/Contents/MacOS/Google\ Chrome --remote-debugging-port=9222
 
 # 抓取指定 URL（使用已有 Chrome 的 cookie 和登录状态）
-s2p --url https://private-page.com --cdp 9222 -o page.pdf
+superweb2pdf --url https://private-page.com --cdp 9222 -o page.pdf
 
 # 抓取当前页面（不指定 URL）
-s2p --cdp 9222 -o current.pdf
+superweb2pdf --cdp 9222 -o current.pdf
 ```
 
 ### 文件夹监控模式
 
 ```bash
 # 监控 inbox 文件夹，新图片自动转 PDF
-s2p --watch ~/Screenshots/inbox -o ~/Screenshots/output
+superweb2pdf --watch ~/Screenshots/inbox -o ~/Screenshots/output
 
-# 配合 Chrome 扩展使用：扩展保存截图到 inbox，s2p 自动处理
+# 配合 Chrome 扩展使用：扩展保存截图到 inbox，superweb2pdf 自动处理
 ```
 
 ### Chrome 扩展（手动截图）
@@ -138,7 +138,7 @@ s2p --watch ~/Screenshots/inbox -o ~/Screenshots/output
 2. 启用「开发者模式」
 3. 点击「加载已解压的扩展程序」→ 选择 `extension/` 文件夹
 4. 点击扩展图标 → "Capture Full Page"
-5. 截图保存到 Downloads，再用 `s2p --image` 处理
+5. 截图保存到 Downloads，再用 `superweb2pdf --image` 处理
 
 ## CLI 参数参考
 
@@ -178,7 +178,7 @@ s2p --watch ~/Screenshots/inbox -o ~/Screenshots/output
 
 ## 智能分页算法
 
-`s2p` 的核心是 **smart split** 算法，流程如下：
+`superweb2pdf` 的核心是 **smart split** 算法，流程如下：
 
 1. **扫描空白带** — 逐行分析截图像素，找出连续的纯色/背景行（容差可调）。每隔 4 像素采样一次以提升性能。
 2. **放置理想切割线** — 按 `max_page_height` 的整数倍放置理想分割点。

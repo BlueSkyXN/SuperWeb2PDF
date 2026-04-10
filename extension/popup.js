@@ -30,7 +30,7 @@ function buildFilename(url) {
   } catch (_) {
     /* ignore */
   }
-  return `s2p-${hostname}-${timestamp()}.png`;
+  return `superweb2pdf-${hostname}-${timestamp()}.png`;
 }
 
 function dataURLtoBlob(dataURL) {

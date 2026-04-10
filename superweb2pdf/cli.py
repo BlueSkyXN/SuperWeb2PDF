@@ -1,4 +1,4 @@
-"""CLI entry point for SuperWeb2PDF (s2p)."""
+"""CLI entry point for SuperWeb2PDF (superweb2pdf)."""
 
 from __future__ import annotations
 
@@ -24,7 +24,7 @@ def auto_output_name(args: argparse.Namespace) -> str:
         if args.url:
             from urllib.parse import urlparse
             host = urlparse(args.url).hostname or "page"
-            return f"s2p-{host}-{ts}.pdf"
+            return f"superweb2pdf-{host}-{ts}.pdf"
         return f"capture-{ts}.pdf"
     return "output.pdf"
 
@@ -32,7 +32,7 @@ def auto_output_name(args: argparse.Namespace) -> str:
 def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     """Build and parse CLI arguments."""
     parser = argparse.ArgumentParser(
-        prog="s2p",
+        prog="superweb2pdf",
         description="Convert full-page web screenshots into intelligently paginated PDFs.",
     )
 
