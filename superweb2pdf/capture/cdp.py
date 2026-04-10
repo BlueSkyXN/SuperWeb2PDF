@@ -1,11 +1,12 @@
-"""CDP (Chrome DevTools Protocol) capture backend for SuperWeb2PDF.
+# -*- coding: utf-8 -*-
+"""CDP (Chrome DevTools Protocol) 截图后端
 
-Connects to an already-running Chrome instance via CDP and captures a
-full-page screenshot.  Chrome must be started with remote debugging enabled::
+连接已运行的 Chrome 实例，通过 CDP 协议截取全页截图。
+Chrome 需以 ``--remote-debugging-port`` 参数启动::
 
     google-chrome --remote-debugging-port=9222
 
-Usage from Python::
+用法::
 
     from superweb2pdf.capture.cdp import capture_via_cdp
     img = capture_via_cdp("https://example.com", cdp_port=9222)

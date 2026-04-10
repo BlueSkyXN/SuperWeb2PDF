@@ -1,7 +1,7 @@
-"""Image loading, stitching, and manipulation utilities.
+# -*- coding: utf-8 -*-
+"""图片加载、拼接与处理工具
 
-Provides functions for loading screenshots, stitching them vertically,
-resizing, cropping into pages, and globbing image files with natural sort.
+提供截图加载、纵向拼接、缩放、分页裁切、glob 自然排序等功能。
 """
 
 from __future__ import annotations

@@ -1,8 +1,8 @@
-"""PDF generation from page images.
+# -*- coding: utf-8 -*-
+"""PDF 生成模块
 
-Converts a list of PIL images into a paginated PDF using reportlab.
-Supports fixed paper sizes (A4, Letter, etc.) and auto-sized pages
-that match image dimensions.
+将页面图片列表转为分页 PDF（reportlab）。
+支持固定纸张尺寸（A4、Letter 等）和自适应尺寸模式。
 """
 
 from __future__ import annotations

@@ -1,4 +1,5 @@
-"""CLI entry point for SuperWeb2PDF (superweb2pdf)."""
+# -*- coding: utf-8 -*-
+"""CLI 入口 — SuperWeb2PDF 命令行工具"""
 
 from __future__ import annotations
 

@@ -1,12 +1,11 @@
-"""Playwright-based headless Chromium capture backend.
+# -*- coding: utf-8 -*-
+"""Playwright 无头 Chromium 截图后端
 
-Captures full-page screenshots by launching headless Chromium via Playwright,
-navigating to a URL, scrolling to trigger lazy-loaded content, and taking a
-full-page screenshot.  Returns the result as a PIL Image.
+启动无头 Chromium 访问 URL，自动滚动触发懒加载，返回全页截图。
 
-Prerequisites:
-    - ``playwright`` Python package installed
-    - Chromium browser installed (``playwright install chromium``)
+前置条件：
+    - 安装 playwright: ``pip install playwright``
+    - 安装浏览器: ``playwright install chromium``
 """
 
 from __future__ import annotations

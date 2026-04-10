@@ -1,7 +1,8 @@
-"""Smart page splitting engine for SuperWeb2PDF.
+# -*- coding: utf-8 -*-
+"""智能分页引擎 — SuperWeb2PDF 核心模块
 
-Analyzes full-page web screenshots to find optimal split points at blank/background
-regions, avoiding cuts through text and images.
+分析全页网页截图，在空白/背景区域找到最优切割点，
+避免文字和图片被截断。
 """
 
 from __future__ import annotations

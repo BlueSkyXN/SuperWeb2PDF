@@ -1,14 +1,13 @@
-"""AppleScript + Quartz capture backend for macOS Chrome.
+# -*- coding: utf-8 -*-
+"""AppleScript + Quartz 截图后端（macOS Chrome）
 
-Captures full-page screenshots of Chrome's current tab by:
-1. Using AppleScript to query tab info and control scrolling via JS execution
-2. Using Quartz (CGWindowListCreateImage) for pixel-perfect window capture
-3. Stitching viewport-sized captures into a single tall image
+通过 AppleScript 控制 Chrome 滚动 + Quartz CGWindowListCreateImage 逐屏截图，
+自动裁剪工具栏并拼接为完整长图。
 
-Prerequisites:
-    - macOS with Google Chrome installed
-    - Chrome → View → Developer → "Allow JavaScript from Apple Events" enabled
-    - Screen recording permission granted to the terminal / IDE
+前置条件：
+    - macOS + Google Chrome
+    - Chrome → 视图 → 开发者 → 勾选「允许 Apple 事件中的 JavaScript」
+    - 终端/IDE 需有屏幕录制权限
 """
 
 from __future__ import annotations

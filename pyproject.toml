@@ -6,7 +6,7 @@ build-backend = "setuptools.build_meta"
 name = "superweb2pdf"
 version = "0.1.0"
 description = "Convert full-page web screenshots to intelligently paginated PDFs"
-requires-python = ">=3.11"
+requires-python = ">=3.10"
 dependencies = [
     "Pillow>=12.0",
     "reportlab>=4.0",

@@ -1,6 +1,25 @@
+<div align="center">
+
 # SuperWeb2PDF
 
+[![Python](https://img.shields.io/badge/Python-3.10+-blue.svg)](https://www.python.org/)
+[![License: MIT](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
+[![GitHub Stars](https://img.shields.io/github/stars/BlueSkyXN/SuperWeb2PDF.svg)](https://github.com/BlueSkyXN/SuperWeb2PDF/stargazers)
+
 将全页网页截图转换为**智能分页** PDF —— 自动在空白区域分页，避免切断文字和图片。
+
+</div>
+
+---
+
+## ✨ 功能特性
+
+- 🧠 **智能分页** — 自动检测空白/背景区域，在最佳位置切割分页
+- 📸 **多种截图方式** — 本地文件、AppleScript 抓取、无头浏览器、CDP 连接、Chrome 扩展
+- 📄 **灵活纸张** — A4、Letter、自定义尺寸、自适应内容尺寸
+- 🖥️ **macOS 原生** — AppleScript + Quartz 直接抓取 Chrome 当前标签页
+- 👀 **文件夹监控** — 自动处理新截图，配合 Chrome 扩展使用
+- 🌐 **懒加载支持** — 自动滚动页面触发懒加载内容
 
 ## 为什么需要它？
 

@@ -1,8 +1,7 @@
-"""File-based image capture for SuperWeb2PDF.
+# -*- coding: utf-8 -*-
+"""文件输入捕获模块
 
-Provides functions to load single images, glob-matched image sets, and
-entire directories of images, returning them as PIL Image objects ready
-for PDF conversion.
+从本地文件、glob 模式或目录加载图片，返回 PIL Image 供后续处理。
 """
 
 from __future__ import annotations

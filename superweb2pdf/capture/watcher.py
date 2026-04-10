@@ -1,7 +1,8 @@
-"""Directory watcher for SuperWeb2PDF.
+# -*- coding: utf-8 -*-
+"""文件夹监控模块
 
-Monitors a directory for new image files and auto-processes them into
-PDFs via a caller-supplied callback.  Used by the ``--watch DIR`` CLI mode.
+监控指定目录的新图片文件，通过回调函数自动处理为 PDF。
+用于 ``--watch DIR`` CLI 模式。
 """
 
 from __future__ import annotations
