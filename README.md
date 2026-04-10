@@ -99,6 +99,47 @@ s2p --image screenshot.png --paper 200x300
 s2p --image screenshot.png --open
 ```
 
+### 无头浏览器抓取 URL
+
+```bash
+# 公开页面 — 自动启动 Chromium，滚动触发懒加载，全页截图
+s2p --url https://example.com/article -o article.pdf
+
+# 需要先安装浏览器：playwright install chromium
+```
+
+### CDP 模式 — 连接已运行的 Chrome
+
+```bash
+# 先启动带调试端口的 Chrome
+/Applications/Google\ Chrome.app/Contents/MacOS/Google\ Chrome --remote-debugging-port=9222
+
+# 抓取指定 URL（使用已有 Chrome 的 cookie 和登录状态）
+s2p --url https://private-page.com --cdp 9222 -o page.pdf
+
+# 抓取当前页面（不指定 URL）
+s2p --cdp 9222 -o current.pdf
+```
+
+### 文件夹监控模式
+
+```bash
+# 监控 inbox 文件夹，新图片自动转 PDF
+s2p --watch ~/Screenshots/inbox -o ~/Screenshots/output
+
+# 配合 Chrome 扩展使用：扩展保存截图到 inbox，s2p 自动处理
+```
+
+### Chrome 扩展（手动截图）
+
+加载 `extension/` 目录为 Chrome 未打包扩展：
+
+1. 打开 `chrome://extensions`
+2. 启用「开发者模式」
+3. 点击「加载已解压的扩展程序」→ 选择 `extension/` 文件夹
+4. 点击扩展图标 → "Capture Full Page"
+5. 截图保存到 Downloads，再用 `s2p --image` 处理
+
 ## CLI 参数参考
 
 ### 输入源（互斥，必选其一）
@@ -108,8 +149,10 @@ s2p --image screenshot.png --open
 | `--image FILE` | 输入单张长截图 |
 | `--images PATTERN` | 输入多张截图（glob 模式，如 `"*.png"`） |
 | `--current-tab` | 抓取 Chrome 当前标签页（macOS，需配置权限） |
-| `--url URL` | 通过无头浏览器抓取 URL（🚧 计划中） |
-| `--watch DIR` | 监控文件夹，自动转换新截图（🚧 计划中） |
+| `--url URL` | 无头浏览器抓取 URL（需 Playwright） |
+| `--url URL --cdp PORT` | 通过 CDP 连接已有 Chrome 抓取 URL |
+| `--cdp PORT` | 抓取 CDP Chrome 当前页面 |
+| `--watch DIR` | 监控文件夹，自动转换新截图（需 watchdog） |
 
 ### 处理选项
 
@@ -152,11 +195,19 @@ superweb2pdf/
 ├── cli.py                  # CLI 入口与参数解析
 ├── capture/                # 截图采集层
 │   ├── applescript.py      #   macOS Chrome 抓取（AppleScript + Quartz）
-│   └── file_input.py       #   本地文件/glob 输入
+│   ├── file_input.py       #   本地文件/glob 输入
+│   ├── headless.py         #   Playwright 无头 Chromium 抓取
+│   ├── cdp.py              #   CDP 连接已有 Chrome
+│   └── watcher.py          #   文件夹监控
 └── core/                   # 处理核心
     ├── splitter.py         #   智能分页引擎
     ├── image_utils.py      #   图片加载、拼接、裁剪、缩放
     └── pdf_builder.py      #   PDF 生成（reportlab）
+
+extension/                  # Chrome 截图扩展（MV3）
+├── manifest.json
+├── popup.html
+└── popup.js
 ```
 
 **数据流：**

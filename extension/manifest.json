@@ -1,0 +1,14 @@
+{
+  "manifest_version": 3,
+  "name": "SuperWeb2PDF Capture",
+  "version": "1.0.0",
+  "description": "Capture full-page screenshots for SuperWeb2PDF",
+  "permissions": [
+    "activeTab",
+    "scripting",
+    "downloads"
+  ],
+  "action": {
+    "default_popup": "popup.html"
+  }
+}
