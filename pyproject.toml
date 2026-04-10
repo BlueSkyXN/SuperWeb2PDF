@@ -6,6 +6,8 @@ build-backend = "setuptools.build_meta"
 name = "superweb2pdf"
 version = "0.1.0"
 description = "Convert full-page web screenshots to intelligently paginated PDFs"
+license = {text = "GPL-3.0-or-later"}
+authors = [{name = "BlueSkyXN"}]
 requires-python = ">=3.10"
 dependencies = [
     "Pillow>=12.0",

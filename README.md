@@ -3,7 +3,7 @@
 # SuperWeb2PDF
 
 [![Python](https://img.shields.io/badge/Python-3.10+-blue.svg)](https://www.python.org/)
-[![License: MIT](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
+[![License: GPL v3](https://img.shields.io/badge/License-GPLv3-blue.svg)](LICENSE)
 [![GitHub Stars](https://img.shields.io/github/stars/BlueSkyXN/SuperWeb2PDF.svg)](https://github.com/BlueSkyXN/SuperWeb2PDF/stargazers)
 
 将全页网页截图转换为**智能分页** PDF —— 自动在空白区域分页，避免切断文字和图片。
@@ -275,4 +275,4 @@ python -m pytest tests/ -v
 
 ## 许可证
 
-MIT License — 详见 [LICENSE](LICENSE) 文件。
+GPL-3.0 License — 详见 [LICENSE](LICENSE) 文件。
