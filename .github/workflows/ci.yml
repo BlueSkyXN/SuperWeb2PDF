@@ -1,0 +1,103 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  lint:
+    name: 代码检查
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.10"
+
+      - name: Install dependencies
+        run: pip install -e . ruff
+
+      - name: Ruff lint
+        run: ruff check superweb2pdf/
+
+      - name: Ruff format check
+        run: ruff format --check superweb2pdf/
+
+  test:
+    name: 测试 (Python ${{ matrix.python-version }}, ${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest]
+        python-version: ["3.10", "3.11", "3.12", "3.13"]
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Python ${{ matrix.python-version }}
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+
+      - name: Install dependencies
+        run: pip install -e .
+
+      - name: Import check
+        run: |
+          python -c "
+          import superweb2pdf
+          print(f'version: {superweb2pdf.__version__}')
+          from superweb2pdf.core import splitter, image_utils, pdf_builder
+          from superweb2pdf.capture import file_input
+          print('All core modules OK')
+          "
+
+      - name: CLI smoke test
+        run: |
+          superweb2pdf --help
+
+      - name: Smart split integration test
+        run: |
+          python -c "
+          from PIL import Image, ImageDraw
+          img = Image.new('RGB', (800, 4000), 'white')
+          d = ImageDraw.Draw(img)
+          for i in range(5):
+              y = i * 800
+              d.rectangle([50, y+50, 750, y+700], fill='#336699')
+          img.save('/tmp/test_screenshot.png')
+          "
+          superweb2pdf --image /tmp/test_screenshot.png -o /tmp/test_output.pdf -v
+          python -c "
+          import os
+          size = os.path.getsize('/tmp/test_output.pdf')
+          assert size > 1000, f'PDF too small: {size} bytes'
+          print(f'PDF generated: {size} bytes ✅')
+          "
+
+  build:
+    name: 构建检查
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install build tools
+        run: pip install build
+
+      - name: Build package
+        run: python -m build
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: dist
+          path: dist/
