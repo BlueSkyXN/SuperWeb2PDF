@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """文件夹监控模块
 
 监控指定目录的新图片文件，通过回调函数自动处理为 PDF。
@@ -9,17 +8,14 @@ from __future__ import annotations
 
 import os
 import sys
-import time
 import threading
 from pathlib import Path
 
 try:
-    from watchdog.observers import Observer
     from watchdog.events import FileSystemEventHandler
+    from watchdog.observers import Observer
 except ImportError:
-    raise ImportError(
-        "watchdog is required for --watch mode. Install: pip install watchdog"
-    )
+    raise ImportError("watchdog is required for --watch mode. Install: pip install watchdog")
 
 IMAGE_EXTENSIONS: set[str] = {".png", ".jpg", ".jpeg", ".webp", ".bmp", ".tiff"}
 
@@ -177,9 +173,7 @@ def watch_directory(
     observer.start()
 
     print(
-        f"👀 Watching {watch_path}\n"
-        f"   Output → {out_path}\n"
-        f"   Press Ctrl+C to stop.",
+        f"👀 Watching {watch_path}\n   Output → {out_path}\n   Press Ctrl+C to stop.",
         file=sys.stderr,
     )
 

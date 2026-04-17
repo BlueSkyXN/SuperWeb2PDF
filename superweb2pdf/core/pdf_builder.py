@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """PDF 生成模块
 
 将页面图片列表转为分页 PDF（reportlab）。
@@ -185,9 +184,7 @@ def build_pdf(
 
     for img in page_images:
         reader = _pil_to_reader(img)
-        x, y, draw_w, draw_h = _fit_image_on_page(
-            img.width, img.height, page_w_pt, page_h_pt
-        )
+        x, y, draw_w, draw_h = _fit_image_on_page(img.width, img.height, page_w_pt, page_h_pt)
         c.drawImage(reader, x, y, width=draw_w, height=draw_h)
         c.showPage()
 
