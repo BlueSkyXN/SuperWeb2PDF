@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """文件输入捕获模块
 
 从本地文件、glob 模式或目录加载图片，返回 PIL Image 供后续处理。
@@ -21,10 +20,7 @@ from superweb2pdf.core.image_utils import (
 
 def _natural_sort_key(path: Path) -> list[int | str]:
     """Return a sort key that orders filenames naturally (e.g. img2 < img10)."""
-    return [
-        int(part) if part.isdigit() else part.lower()
-        for part in re.split(r"(\d+)", path.name)
-    ]
+    return [int(part) if part.isdigit() else part.lower() for part in re.split(r"(\d+)", path.name)]
 
 
 def capture_from_file(path: str | Path) -> Image.Image:

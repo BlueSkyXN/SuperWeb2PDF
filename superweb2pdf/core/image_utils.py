@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """图片加载、拼接与处理工具
 
 提供截图加载、纵向拼接、缩放、分页裁切、glob 自然排序等功能。
@@ -187,6 +186,10 @@ def glob_images(pattern: str) -> list[Path]:
     Returns:
         Naturally sorted list of :class:`~pathlib.Path` objects.
     """
-    matched = Path(".").glob(pattern) if not Path(pattern).is_absolute() else Path("/").glob(pattern.lstrip("/"))
+    matched = (
+        Path(".").glob(pattern)
+        if not Path(pattern).is_absolute()
+        else Path("/").glob(pattern.lstrip("/"))
+    )
     images = [p for p in matched if p.is_file() and p.suffix.lower() in IMAGE_EXTENSIONS]
     return sorted(images, key=_natural_sort_key)

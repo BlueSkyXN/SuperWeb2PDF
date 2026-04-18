@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """Playwright 无头 Chromium 截图后端
 
 启动无头 Chromium 访问 URL，自动滚动触发懒加载，返回全页截图。
@@ -15,10 +14,10 @@ import sys
 
 from PIL import Image
 
-
 # ---------------------------------------------------------------------------
 # Internal helpers
 # ---------------------------------------------------------------------------
+
 
 def _launch_browser(playwright):
     """Launch headless Chromium, raising a friendly error on failure."""
@@ -63,6 +62,7 @@ def _auto_scroll(page, scroll_delay_ms: int, verbose: bool) -> None:
 # Public API
 # ---------------------------------------------------------------------------
 
+
 def capture_url(
     url: str,
     scroll_delay_ms: int = 800,
@@ -88,7 +88,8 @@ def capture_url(
     Raises:
         RuntimeError: If the browser cannot be launched or navigation fails.
     """
-    from playwright.sync_api import sync_playwright, TimeoutError as PWTimeoutError
+    from playwright.sync_api import TimeoutError as PWTimeoutError
+    from playwright.sync_api import sync_playwright
 
     def _log(msg: str) -> None:
         if verbose:
@@ -109,13 +110,9 @@ def capture_url(
             try:
                 page.goto(url, wait_until="networkidle", timeout=60_000)
             except PWTimeoutError:
-                raise RuntimeError(
-                    f"Timed out waiting for page to load: {url}"
-                )
+                raise RuntimeError(f"Timed out waiting for page to load: {url}")
             except Exception as exc:
-                raise RuntimeError(
-                    f"Failed to navigate to {url}: {exc}"
-                ) from exc
+                raise RuntimeError(f"Failed to navigate to {url}: {exc}") from exc
 
             _log(f"Page loaded: {page.title()}")
 

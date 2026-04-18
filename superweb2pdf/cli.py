@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """CLI 入口 — SuperWeb2PDF 命令行工具"""
 
 from __future__ import annotations
@@ -21,9 +20,11 @@ def auto_output_name(args: argparse.Namespace) -> str:
         return str(parent / f"{base}.pdf")
     if args.current_tab or args.url:
         from datetime import datetime
+
         ts = datetime.now().strftime("%Y%m%d-%H%M%S")
         if args.url:
             from urllib.parse import urlparse
+
             host = urlparse(args.url).hostname or "page"
             return f"superweb2pdf-{host}-{ts}.pdf"
         return f"capture-{ts}.pdf"
@@ -46,9 +47,7 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
         help="Capture Chrome's current tab via AppleScript (macOS)",
     )
     mx.add_argument("--image", metavar="FILE", help="Input a single long screenshot")
-    mx.add_argument(
-        "--images", metavar="PATTERN", help="Input multiple screenshots (glob pattern)"
-    )
+    mx.add_argument("--images", metavar="PATTERN", help="Input multiple screenshots (glob pattern)")
     mx.add_argument("--url", metavar="URL", help="Capture a URL (headless or CDP mode)")
     mx.add_argument("--watch", metavar="DIR", help="Watch directory for new images")
 
@@ -62,12 +61,8 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
 
     # --- Processing options ---
     proc = parser.add_argument_group("Processing options")
-    proc.add_argument(
-        "--max-width", type=int, metavar="PX", help="Limit maximum width in pixels"
-    )
-    proc.add_argument(
-        "--max-height", type=int, metavar="PX", help="Max page height in pixels"
-    )
+    proc.add_argument("--max-width", type=int, metavar="PX", help="Limit maximum width in pixels")
+    proc.add_argument("--max-height", type=int, metavar="PX", help="Max page height in pixels")
     proc.add_argument(
         "--paper",
         default="a4",
@@ -111,9 +106,7 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     # --- Output options ---
     out = parser.add_argument_group("Output")
     out.add_argument("-o", "--output", metavar="FILE", help="Output PDF path")
-    out.add_argument(
-        "--open", action="store_true", help="Open PDF after generation (macOS)"
-    )
+    out.add_argument("--open", action="store_true", help="Open PDF after generation (macOS)")
     out.add_argument("-v", "--verbose", action="store_true", help="Show detailed progress")
 
     args = parser.parse_args(argv)
@@ -123,13 +116,15 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
         if args.cdp:
             pass  # --cdp alone captures the current CDP page
         else:
-            parser.error("one capture option is required (--image, --images, --current-tab, --url, --watch, or --cdp)")
+            parser.error(
+                "one capture option is required (--image, --images, --current-tab, --url, --watch, or --cdp)"
+            )
 
     # --cdp without --url means "capture current CDP page"
     if args.cdp and not args.url:
         args._cdp_current_page = True
     else:
-        args._cdp_current_page = getattr(args, '_cdp_current_page', False)
+        args._cdp_current_page = getattr(args, "_cdp_current_page", False)
 
     # Validate numeric arguments
     if args.max_width is not None and args.max_width <= 0:
@@ -244,6 +239,7 @@ def main(argv: list[str] | None = None) -> None:
             if args.verbose:
                 print("Capturing Chrome current tab …", file=sys.stderr)
             from superweb2pdf.capture.applescript import capture_current_tab
+
             image = capture_current_tab(
                 scroll_delay_ms=args.scroll_delay,
                 verbose=args.verbose,
@@ -252,6 +248,7 @@ def main(argv: list[str] | None = None) -> None:
             if args.verbose:
                 print(f"Capturing {args.url} via CDP (port {args.cdp}) …", file=sys.stderr)
             from superweb2pdf.capture.cdp import capture_via_cdp
+
             image = capture_via_cdp(
                 url=args.url,
                 cdp_port=args.cdp,
@@ -262,15 +259,17 @@ def main(argv: list[str] | None = None) -> None:
             if args.verbose:
                 print(f"Capturing {args.url} (headless) …", file=sys.stderr)
             from superweb2pdf.capture.headless import capture_url
+
             image = capture_url(
                 url=args.url,
                 scroll_delay_ms=args.scroll_delay,
                 verbose=args.verbose,
             )
-        elif getattr(args, '_cdp_current_page', False):
+        elif getattr(args, "_cdp_current_page", False):
             if args.verbose:
                 print(f"Capturing current CDP page (port {args.cdp}) …", file=sys.stderr)
             from superweb2pdf.capture.cdp import capture_via_cdp
+
             image = capture_via_cdp(
                 url=None,
                 cdp_port=args.cdp,
@@ -317,8 +316,7 @@ def main(argv: list[str] | None = None) -> None:
             page_images = crop_pages(image, result.split_points)
             if args.verbose:
                 print(
-                    f"Split into {len(page_images)} pages "
-                    f"({len(result.hard_cuts)} hard cuts)",
+                    f"Split into {len(page_images)} pages ({len(result.hard_cuts)} hard cuts)",
                     file=sys.stderr,
                 )
 
