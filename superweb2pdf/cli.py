@@ -222,12 +222,26 @@ def _run_watch_mode(args: argparse.Namespace) -> None:
     )
 
 
+def _infer_backend(args: argparse.Namespace) -> str:
+    """Infer the capture backend from CLI args.
+
+    If the user explicitly set --backend, use that.  Otherwise, --cdp with
+    --url implies the cdp backend so the port is respected.
+    """
+    explicit = getattr(args, "backend", "auto") or "auto"
+    if explicit != "auto":
+        return explicit
+    if args.cdp and args.url:
+        return "cdp"
+    return "auto"
+
+
 def _build_options(args: argparse.Namespace) -> WebToPdfOptions:
     """Convert CLI args to WebToPdfOptions."""
     from superweb2pdf.options import CaptureOptions, PdfOptions, SplitOptions, WebToPdfOptions
 
     capture = CaptureOptions(
-        backend=getattr(args, "backend", "auto") or "auto",
+        backend=_infer_backend(args),
         scroll_delay_ms=args.scroll_delay,
         cdp_port=args.cdp or 9222,
     )
@@ -325,7 +339,7 @@ def main(argv: list[str] | None = None) -> None:
     from superweb2pdf.errors import SuperWeb2PDFError
 
     try:
-        result = convert(source, args.output, options=options, progress=progress_cb)
+        result = convert(source, args.output or auto_output_name(args), options=options, progress=progress_cb)
     except SuperWeb2PDFError as exc:
         print(f"Error: {exc}", file=sys.stderr)
         sys.exit(1)

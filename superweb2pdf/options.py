@@ -65,7 +65,12 @@ def _validate_paper(paper: str) -> None:
 
 @dataclass(frozen=True)
 class CaptureOptions:
-    """Options controlling page or image capture."""
+    """Options controlling page or image capture.
+
+    .. note::
+        ``timeout_seconds`` and ``retries`` are reserved for future use.
+        They are validated but not yet passed to capture backends.
+    """
 
     backend: CaptureBackendName = "auto"
     viewport_width: int = 1280

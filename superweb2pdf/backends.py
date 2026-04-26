@@ -125,7 +125,11 @@ class FileBackend:
         return Path(source).exists() or _has_glob_wildcards(source)
 
     def capture(self, source: str, **kwargs) -> Image.Image:
-        """Capture local image input, dispatching by source type."""
+        """Capture local image input, dispatching by source type.
+
+        File backends ignore capture-level kwargs (scroll_delay_ms, etc.)
+        since they only load from disk.
+        """
         from superweb2pdf.capture.file_input import (
             capture_from_directory,
             capture_from_file,
@@ -162,7 +166,9 @@ class HeadlessBackend:
         """Capture an HTTP(S) URL via headless Chromium."""
         from superweb2pdf.capture.headless import capture_url
 
-        return capture_url(source, **kwargs)
+        accepted = {"scroll_delay_ms", "viewport_width", "verbose"}
+        filtered = {k: v for k, v in kwargs.items() if k in accepted}
+        return capture_url(source, **filtered)
 
 
 class CdpBackend:
@@ -187,8 +193,10 @@ class CdpBackend:
         """Capture an HTTP(S) URL or the current CDP tab."""
         from superweb2pdf.capture.cdp import capture_via_cdp
 
+        accepted = {"cdp_port", "scroll_delay_ms", "viewport_width", "verbose"}
+        filtered = {k: v for k, v in kwargs.items() if k in accepted}
         url = None if source == "cdp://current" else source
-        return capture_via_cdp(url, **kwargs)
+        return capture_via_cdp(url, **filtered)
 
 
 class MacChromeBackend:
@@ -213,7 +221,9 @@ class MacChromeBackend:
         """Capture Chrome's current tab on macOS."""
         from superweb2pdf.capture.applescript import capture_current_tab
 
-        return capture_current_tab(**kwargs)
+        accepted = {"scroll_delay_ms", "verbose"}
+        filtered = {k: v for k, v in kwargs.items() if k in accepted}
+        return capture_current_tab(**filtered)
 
 
 _default_registry: BackendRegistry | None = None

@@ -258,10 +258,13 @@ def convert(
     if output_path and output_path.exists():
         file_size = output_path.stat().st_size
     elif hasattr(output, "tell") and hasattr(output, "seek"):
-        pos = output.tell()
-        output.seek(0, 2)
-        file_size = output.tell()
-        output.seek(pos)
+        try:
+            pos = output.tell()
+            output.seek(0, 2)
+            file_size = output.tell()
+            output.seek(pos)
+        except (OSError, ValueError):
+            pass
 
     _emit(progress, "done", f"Done — {len(pages)} pages")
 
