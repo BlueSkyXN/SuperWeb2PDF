@@ -20,14 +20,13 @@ import urllib.error
 import urllib.request
 
 from PIL import Image
-from playwright.sync_api import sync_playwright
 
 
 # ---------------------------------------------------------------------------
 # CDP availability check
 # ---------------------------------------------------------------------------
 
-def check_cdp_available(port: int = 9222) -> bool:
+def check_cdp_available(port: int = 9222, timeout: float = 0.5) -> bool:
     """Return *True* if a CDP endpoint is reachable on *port*.
 
     Performs a quick HTTP GET to ``http://localhost:{port}/json/version``.
@@ -37,7 +36,7 @@ def check_cdp_available(port: int = 9222) -> bool:
             f"http://localhost:{port}/json/version",
             method="GET",
         )
-        with urllib.request.urlopen(req, timeout=2) as resp:
+        with urllib.request.urlopen(req, timeout=timeout) as resp:
             return resp.status == 200
     except (urllib.error.URLError, OSError):
         return False
@@ -54,8 +53,8 @@ def _auto_scroll(page, scroll_delay_ms: int, verbose: bool) -> None:
     page.evaluate("window.scrollTo(0, 0)")
     page.wait_for_timeout(delay_ms)
 
-    viewport_height = page.evaluate("document.documentElement.clientHeight")
-    scroll_height = page.evaluate("document.documentElement.scrollHeight")
+    viewport_height = page.evaluate("document.documentElement.clientHeight") or 800
+    scroll_height = page.evaluate("document.documentElement.scrollHeight") or viewport_height
     pos = 0
 
     while pos < scroll_height:
@@ -72,6 +71,37 @@ def _auto_scroll(page, scroll_delay_ms: int, verbose: bool) -> None:
     if verbose:
         final_height = page.evaluate("document.documentElement.scrollHeight")
         print(f"  Scrolled page (height: {final_height}px)", file=sys.stderr)
+
+
+def _all_pages(browser) -> list:
+    """Return all open CDP pages across all browser contexts."""
+    pages = []
+    for context in browser.contexts:
+        pages.extend(context.pages)
+    return pages
+
+
+def _select_page(browser):
+    """Pick the most likely active tab from a CDP-connected Chrome browser.
+
+    CDP does not expose "frontmost tab" directly through Playwright. In
+    practice, the active tab reports ``document.visibilityState === "visible"``
+    while background tabs are usually ``hidden``. Fall back to the most recently
+    enumerated page rather than always taking contexts[0].pages[0].
+    """
+    pages = _all_pages(browser)
+    if not pages:
+        raise RuntimeError(
+            "Connected to Chrome but found no open pages. Please open at least one tab."
+        )
+
+    for page in reversed(pages):
+        try:
+            if page.evaluate("document.visibilityState") == "visible":
+                return page
+        except Exception:
+            continue
+    return pages[-1]
 
 
 # ---------------------------------------------------------------------------
@@ -106,6 +136,16 @@ def capture_via_cdp(
         RuntimeError: If Chrome is not reachable on the given port or if
             the browser has no open pages.
     """
+    try:
+        from playwright.sync_api import TimeoutError as PWTimeoutError
+        from playwright.sync_api import sync_playwright
+    except ImportError as exc:
+        raise RuntimeError(
+            "Playwright is required for CDP capture mode. Install it with:\n"
+            "    pip install playwright\n"
+            "Then install a browser if needed:\n"
+            "    playwright install chromium"
+        ) from exc
 
     def _log(msg: str) -> None:
         if verbose:
@@ -131,13 +171,7 @@ def capture_via_cdp(
 
         try:
             # -- Get the active page -------------------------------------------
-            if not browser.contexts or not browser.contexts[0].pages:
-                raise RuntimeError(
-                    "Connected to Chrome but found no open pages. "
-                    "Please open at least one tab."
-                )
-
-            page = browser.contexts[0].pages[0]
+            page = _select_page(browser)
 
             # -- Optionally resize viewport ------------------------------------
             if viewport_width is not None:
@@ -150,12 +184,22 @@ def capture_via_cdp(
             # -- Navigate if URL provided --------------------------------------
             if url is not None:
                 _log(f"Navigating to {url} …")
-                page.goto(url, wait_until="networkidle", timeout=60_000)
+                try:
+                    page.goto(url, wait_until="domcontentloaded", timeout=60_000)
+                    try:
+                        page.wait_for_load_state("networkidle", timeout=10_000)
+                    except PWTimeoutError:
+                        _log("Network did not become idle; continuing after DOM load")
+                except PWTimeoutError as exc:
+                    raise RuntimeError(f"Timed out navigating to {url}") from exc
                 _log("Page loaded")
             else:
                 _log(f"Capturing current page: {page.url}")
                 # Wait briefly for any in-flight requests to settle
-                page.wait_for_load_state("networkidle", timeout=10_000)
+                try:
+                    page.wait_for_load_state("networkidle", timeout=5_000)
+                except PWTimeoutError:
+                    _log("Network did not become idle; continuing with current page")
 
             # -- Auto-scroll for lazy loading ----------------------------------
             _log("Scrolling for lazy-loaded content…")
@@ -171,5 +215,7 @@ def capture_via_cdp(
             return image
 
         finally:
-            # Disconnect without closing — the user's Chrome stays open
+            # For a browser obtained via connect_over_cdp(), Playwright closes
+            # the client-side CDP connection/context wrapper; it does not launch
+            # or own the user's Chrome process.
             browser.close()

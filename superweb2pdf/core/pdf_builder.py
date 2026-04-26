@@ -8,8 +8,8 @@
 from __future__ import annotations
 
 import re
-from io import BytesIO
 from pathlib import Path
+from typing import Sequence
 
 from PIL import Image
 from reportlab.lib.utils import ImageReader
@@ -43,6 +43,10 @@ def mm_to_points(mm: float) -> float:
 
 def px_to_mm(px: int, dpi: int) -> float:
     """Convert pixels to millimetres at the given DPI."""
+    if px <= 0:
+        raise ValueError(f"Pixel dimension must be positive, got {px}")
+    if dpi <= 0:
+        raise ValueError(f"dpi must be positive, got {dpi}")
     return px / dpi * 25.4
 
 
@@ -50,7 +54,7 @@ def px_to_mm(px: int, dpi: int) -> float:
 # Paper-size parser
 # ---------------------------------------------------------------------------
 
-_CUSTOM_RE = re.compile(r"^(\d+(?:\.\d+)?)\s*[xX×]\s*(\d+(?:\.\d+)?)$")
+_CUSTOM_RE = re.compile(r"^(\d+(?:[\.,]\d+)?)\s*[xX×]\s*(\d+(?:[\.,]\d+)?)$")
 
 
 def parse_paper_size(spec: str) -> tuple[float, float]:
@@ -75,6 +79,8 @@ def parse_paper_size(spec: str) -> tuple[float, float]:
         If *spec* cannot be parsed or references an unknown named size.
     """
     spec = spec.strip()
+    if not spec:
+        raise ValueError("Paper size specification must not be empty")
     key = spec.lower()
 
     if key in PAPER_SIZES:
@@ -82,7 +88,7 @@ def parse_paper_size(spec: str) -> tuple[float, float]:
 
     m = _CUSTOM_RE.match(spec)
     if m:
-        w, h = float(m.group(1)), float(m.group(2))
+        w, h = (float(m.group(1).replace(",", ".")), float(m.group(2).replace(",", ".")))
         if w <= 0 or h <= 0:
             raise ValueError(f"Paper dimensions must be positive, got {w}x{h}")
         return (w, h)
@@ -99,12 +105,50 @@ def parse_paper_size(spec: str) -> tuple[float, float]:
 # ---------------------------------------------------------------------------
 
 
+def _validate_image(img: Image.Image) -> None:
+    """Validate dimensions before handing an image to ReportLab."""
+    if img.width <= 0 or img.height <= 0:
+        raise ValueError(f"Invalid image dimensions: {img.width}×{img.height}")
+
+
+def _validate_pdf_options(
+    page_images: Sequence[Image.Image],
+    dpi: int,
+    paper_size: tuple[float, float] | None = None,
+) -> None:
+    """Shared validation for PDF builders."""
+    if not page_images:
+        raise ValueError("page_images must not be empty")
+    if dpi <= 0:
+        raise ValueError(f"dpi must be positive, got {dpi}")
+    if paper_size is not None and (paper_size[0] <= 0 or paper_size[1] <= 0):
+        raise ValueError(f"Paper dimensions must be positive, got {paper_size}")
+    for img in page_images:
+        _validate_image(img)
+
+
+def _normalise_pdf_image(img: Image.Image) -> Image.Image:
+    """Return an image mode suitable for efficient ReportLab embedding."""
+    _validate_image(img)
+    if img.mode in {"RGB", "L", "CMYK"}:
+        return img
+
+    # Preserve transparency in screenshots by compositing onto white instead of
+    # letting downstream PDF consumers render alpha inconsistently.
+    if img.mode in {"RGBA", "LA"} or (img.mode == "P" and "transparency" in img.info):
+        rgba = img.convert("RGBA")
+        background = Image.new("RGBA", rgba.size, (255, 255, 255, 255))
+        background.alpha_composite(rgba)
+        return background.convert("RGB")
+
+    return img.convert("RGB")
+
+
 def _pil_to_reader(img: Image.Image) -> ImageReader:
     """Wrap a PIL image in a reportlab ``ImageReader``."""
-    buf = BytesIO()
-    img.save(buf, format="PNG")
-    buf.seek(0)
-    return ImageReader(buf)
+    # ImageReader accepts PIL Image objects directly.  Avoiding an intermediate
+    # PNG encode/decode is much faster and uses less memory for large pages.
+    return ImageReader(_normalise_pdf_image(img))
 
 
 def _fit_image_on_page(
@@ -143,7 +187,7 @@ def _fit_image_on_page(
 
 
 def build_pdf(
-    page_images: list[Image.Image],
+    page_images: Sequence[Image.Image],
     output_path: str | Path,
     paper_size: tuple[float, float] = (210, 297),
     dpi: int = 150,
@@ -174,8 +218,7 @@ def build_pdf(
     ValueError
         If *page_images* is empty.
     """
-    if not page_images:
-        raise ValueError("page_images must not be empty")
+    _validate_pdf_options(page_images, dpi=dpi, paper_size=paper_size)
 
     output_path = Path(output_path)
     page_w_pt = mm_to_points(paper_size[0])
@@ -196,7 +239,7 @@ def build_pdf(
 
 
 def build_pdf_auto_size(
-    page_images: list[Image.Image],
+    page_images: Sequence[Image.Image],
     output_path: str | Path,
     dpi: int = 150,
 ) -> Path:
@@ -224,8 +267,7 @@ def build_pdf_auto_size(
     ValueError
         If *page_images* is empty.
     """
-    if not page_images:
-        raise ValueError("page_images must not be empty")
+    _validate_pdf_options(page_images, dpi=dpi)
 
     output_path = Path(output_path)
 

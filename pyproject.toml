@@ -14,12 +14,19 @@ dependencies = [
     "reportlab>=4.0",
 ]
 
+[project.urls]
+Repository = "https://github.com/BlueSkyXN/SuperWeb2PDF"
+Issues = "https://github.com/BlueSkyXN/SuperWeb2PDF/issues"
+
 [project.optional-dependencies]
 capture = [
     "playwright>=1.40",
 ]
 watch = [
     "watchdog>=4.0",
+]
+dev = [
+    "pytest>=8.0",
 ]
 all = [
     "superweb2pdf[capture,watch]",
@@ -30,3 +37,7 @@ superweb2pdf = "superweb2pdf.cli:main"
 
 [tool.setuptools.packages.find]
 include = ["superweb2pdf*"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+python_files = ["test_*.py"]

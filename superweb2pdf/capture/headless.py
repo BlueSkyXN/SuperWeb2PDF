@@ -27,7 +27,8 @@ def _launch_browser(playwright):
     except Exception as exc:
         raise RuntimeError(
             "Failed to launch Chromium. Make sure the browser is installed:\n"
-            "    playwright install chromium"
+            "    playwright install chromium\n"
+            f"Original error: {exc}"
         ) from exc
 
 
@@ -36,15 +37,33 @@ def _auto_scroll(page, scroll_delay_ms: int, verbose: bool) -> None:
 
     After the scroll pass the page is scrolled back to the top.
     """
-    delay_ms = int(scroll_delay_ms)
+    delay_ms = max(int(scroll_delay_ms), 0)
 
-    viewport_height = page.evaluate("window.innerHeight")
-    scroll_height = page.evaluate("document.documentElement.scrollHeight")
+    page.evaluate(
+        "() => {"
+        "  const el = document.scrollingElement || document.documentElement;"
+        "  if (el) el.scrollTop = 0;"
+        "  window.scrollTo(0, 0);"
+        "}"
+    )
+    page.wait_for_timeout(delay_ms)
+
+    viewport_height = page.evaluate("window.innerHeight") or 800
+    scroll_height = (
+        page.evaluate("document.documentElement.scrollHeight") or viewport_height
+    )
     pos = 0
 
     while pos < scroll_height:
         pos += viewport_height
-        page.evaluate(f"window.scrollTo(0, {pos})")
+        page.evaluate(
+            "(y) => {"
+            "  const el = document.scrollingElement || document.documentElement;"
+            "  if (el) el.scrollTop = y;"
+            "  window.scrollTo(0, y);"
+            "}",
+            pos,
+        )
         page.wait_for_timeout(delay_ms)
         # Lazy loading may have increased scroll height
         scroll_height = page.evaluate("document.documentElement.scrollHeight")
@@ -55,8 +74,18 @@ def _auto_scroll(page, scroll_delay_ms: int, verbose: bool) -> None:
             file=sys.stderr,
         )
 
-    page.evaluate("window.scrollTo(0, 0)")
+    page.evaluate(
+        "() => {"
+        "  const el = document.scrollingElement || document.documentElement;"
+        "  if (el) el.scrollTop = 0;"
+        "  window.scrollTo(0, 0);"
+        "}"
+    )
     page.wait_for_timeout(delay_ms)
+    page.wait_for_function(
+        "() => (window.pageYOffset || document.documentElement.scrollTop || 0) === 0",
+        timeout=5_000,
+    )
 
 
 # ---------------------------------------------------------------------------
@@ -68,6 +97,8 @@ def capture_url(
     scroll_delay_ms: int = 800,
     viewport_width: int = 1280,
     verbose: bool = False,
+    *,
+    viewport_height: int = 900,
 ) -> Image.Image:
     """Capture a full-page screenshot of *url* using headless Chromium.
 
@@ -80,6 +111,7 @@ def capture_url(
         url: The web page URL to capture.
         scroll_delay_ms: Delay between scroll steps (ms) for lazy loading.
         viewport_width: Browser viewport width in CSS pixels.
+        viewport_height: Browser viewport height in CSS pixels.
         verbose: Print progress messages to stderr.
 
     Returns:
@@ -88,26 +120,42 @@ def capture_url(
     Raises:
         RuntimeError: If the browser cannot be launched or navigation fails.
     """
-    from playwright.sync_api import sync_playwright, TimeoutError as PWTimeoutError
+    try:
+        from playwright.sync_api import TimeoutError as PWTimeoutError
+        from playwright.sync_api import sync_playwright
+    except ImportError as exc:
+        raise RuntimeError(
+            "Playwright is required for headless capture mode. Install it with:\n"
+            "    pip install playwright\n"
+            "Then install Chromium:\n"
+            "    playwright install chromium"
+        ) from exc
 
     def _log(msg: str) -> None:
         if verbose:
             print(msg, file=sys.stderr)
 
-    _log(f"Launching headless Chromium (viewport width: {viewport_width}px)…")
+    _log(
+        "Launching headless Chromium "
+        f"(viewport: {viewport_width}×{viewport_height}px)…"
+    )
 
     with sync_playwright() as pw:
         browser = _launch_browser(pw)
         try:
             context = browser.new_context(
-                viewport={"width": viewport_width, "height": 800},
+                viewport={"width": viewport_width, "height": viewport_height},
             )
             page = context.new_page()
 
             # -- Navigate --------------------------------------------------
             _log(f"Navigating to {url}")
             try:
-                page.goto(url, wait_until="networkidle", timeout=60_000)
+                page.goto(url, wait_until="domcontentloaded", timeout=60_000)
+                try:
+                    page.wait_for_load_state("networkidle", timeout=10_000)
+                except PWTimeoutError:
+                    _log("Network did not become idle; continuing after DOM load")
             except PWTimeoutError:
                 raise RuntimeError(
                     f"Timed out waiting for page to load: {url}"
