@@ -1,4 +1,5 @@
 """Tests for SouWen plugin adapter."""
+
 from __future__ import annotations
 
 import asyncio
@@ -123,9 +124,7 @@ class TestMockedConversion:
             side_effect=lambda url, **kw: _mock_result(url, pages=2),
         ):
             client = SuperWeb2PdfClient()
-            response = await client.fetch(
-                ["https://a.com", "https://b.com", "https://c.com"]
-            )
+            response = await client.fetch(["https://a.com", "https://b.com", "https://c.com"])
 
         assert response.total == 3
         assert response.total_ok == 3

@@ -118,7 +118,9 @@ jobs:
           from importlib.metadata import entry_points
           eps = [ep for ep in entry_points(group='souwen.plugins') if ep.name == 'superweb2pdf']
           assert eps, 'superweb2pdf entry point not found'
-          plugin = eps[0].load()
+          factory = eps[0].load()
+          assert callable(factory), 'entry point should be a factory function'
+          plugin = factory()
           print(f'Entry point loaded: {plugin}')
           print(f'Plugin name: {plugin.name}')
           print(f'Plugin domain: {plugin.domain}')

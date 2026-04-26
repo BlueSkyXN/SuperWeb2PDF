@@ -1,4 +1,5 @@
 """SouWen fetch 客户端 — 将 SuperWeb2PDF 的 sync API 包装为 async。"""
+
 from __future__ import annotations
 
 import asyncio

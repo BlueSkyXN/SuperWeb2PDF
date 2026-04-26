@@ -8,6 +8,7 @@
 避免 entry_point 加载时的循环导入（souwen.registry.__init__ →
 load_plugins → ep.load → import 本模块 → import souwen.registry → 循环）。
 """
+
 from __future__ import annotations
 
 
@@ -32,6 +33,7 @@ def plugin():
     # Auto-register fetch handler so `souwen fetch -p superweb2pdf` works
     try:
         from superweb2pdf.souwen_handler import register as _register_handler
+
         _register_handler()
     except Exception:
         pass  # handler registration is optional

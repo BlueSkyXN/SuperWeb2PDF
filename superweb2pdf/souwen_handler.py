@@ -1,4 +1,5 @@
 """可选 fetch handler — 支持 `souwen fetch -p superweb2pdf` 命令行调用。"""
+
 from __future__ import annotations
 
 from typing import TYPE_CHECKING, Any
