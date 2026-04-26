@@ -51,7 +51,7 @@ superweb2pdf --current-tab -o page.pdf --open
 pip install -e .
 ```
 
-依赖：**Pillow** ≥ 12.0、**reportlab** ≥ 4.0。Python ≥ 3.11。
+依赖：**Pillow** ≥ 12.0、**reportlab** ≥ 4.0。Python ≥ 3.10。
 
 ### 可选依赖
 
