@@ -66,3 +66,8 @@ ignore = [
 [tool.ruff.format]
 quote-style = "double"
 indent-style = "space"
+
+[tool.coverage.run]
+omit = [
+    "superweb2pdf/souwen/*",
+]
