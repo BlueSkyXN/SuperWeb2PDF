@@ -254,7 +254,9 @@ def _draw_overlay(
 
     bottom_y = margin
     if overlay.page_numbers:
-        page_text = overlay.page_number_format.format(n=page_number, total=total_pages or page_number)
+        page_text = overlay.page_number_format.format(
+            n=page_number, total=total_pages or page_number
+        )
         pdf_canvas.setFont("Helvetica", 8)
         pdf_canvas.drawCentredString(page_w_pt / 2, bottom_y, page_text)
         bottom_y += 11

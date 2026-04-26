@@ -83,7 +83,9 @@ class CaptureOptions:
     def __post_init__(self) -> None:
         """Validate capture options."""
         if self.backend not in _CAPTURE_BACKENDS:
-            raise ConfigurationError(f"backend must be one of {', '.join(sorted(_CAPTURE_BACKENDS))}")
+            raise ConfigurationError(
+                f"backend must be one of {', '.join(sorted(_CAPTURE_BACKENDS))}"
+            )
         _ensure_positive_int("viewport_width", self.viewport_width)
         _ensure_positive_int("viewport_height", self.viewport_height)
         _ensure_non_negative_int("scroll_delay_ms", self.scroll_delay_ms)

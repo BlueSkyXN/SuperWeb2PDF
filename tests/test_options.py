@@ -9,6 +9,7 @@ from superweb2pdf.options import CaptureOptions, PdfOptions, SplitOptions, WebTo
 
 # CaptureOptions
 
+
 def test_default_capture_options():
     opts = CaptureOptions()
 
@@ -47,6 +48,7 @@ def test_capture_options_frozen():
 
 # SplitOptions
 
+
 def test_default_split_options():
     opts = SplitOptions()
 
@@ -74,6 +76,7 @@ def test_split_options_invalid_search_ratio():
 
 
 # PdfOptions
+
 
 def test_default_pdf_options():
     opts = PdfOptions()
@@ -114,6 +117,7 @@ def test_pdf_options_custom_paper():
 
 
 # WebToPdfOptions
+
 
 def test_default_web_options():
     opts = WebToPdfOptions()

@@ -339,7 +339,9 @@ def main(argv: list[str] | None = None) -> None:
     from superweb2pdf.errors import SuperWeb2PDFError
 
     try:
-        result = convert(source, args.output or auto_output_name(args), options=options, progress=progress_cb)
+        result = convert(
+            source, args.output or auto_output_name(args), options=options, progress=progress_cb
+        )
     except SuperWeb2PDFError as exc:
         print(f"Error: {exc}", file=sys.stderr)
         sys.exit(1)

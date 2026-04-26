@@ -37,6 +37,7 @@ def tmp_image(tmp_path, sample_image):
 
 # Splitter
 
+
 def test_split_image_simple(sample_image):
     result = split_image(sample_image, max_page_height=1000)
 
@@ -84,6 +85,7 @@ def test_split_image_invalid_height(small_image, max_height):
 
 
 # image_utils
+
 
 def test_load_image(tmp_image):
     image = load_image(tmp_image)

@@ -90,7 +90,9 @@ class BackendRegistry:
             hints = [backend.install_hint for backend in candidates if backend.install_hint]
             hint_text = f" Install with: {'; '.join(hints)}" if hints else ""
             names = ", ".join(backend.name for backend in candidates)
-            raise RuntimeError(f"No available capture backend for {source!r}. Tried: {names}.{hint_text}")
+            raise RuntimeError(
+                f"No available capture backend for {source!r}. Tried: {names}.{hint_text}"
+            )
 
         raise ValueError(f"No capture backend supports source: {source!r}")
 
