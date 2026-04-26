@@ -13,7 +13,7 @@ async def superweb2pdf_fetch_handler(
     timeout: float = 60.0,
     **kwargs: Any,
 ) -> FetchResponse:
-    from superweb2pdf.souwen_client import SuperWeb2PdfClient
+    from superweb2pdf.souwen.client import SuperWeb2PdfClient
 
     async with SuperWeb2PdfClient() as client:
         return await client.fetch(urls, timeout=timeout, **kwargs)

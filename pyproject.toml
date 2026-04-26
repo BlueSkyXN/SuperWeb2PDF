@@ -32,7 +32,7 @@ all = [
 superweb2pdf = "superweb2pdf.cli:main"
 
 [project.entry-points."souwen.plugins"]
-superweb2pdf = "superweb2pdf.souwen_plugin:plugin"
+superweb2pdf = "superweb2pdf.souwen.plugin:plugin"
 
 [tool.setuptools.packages.find]
 include = ["superweb2pdf*"]

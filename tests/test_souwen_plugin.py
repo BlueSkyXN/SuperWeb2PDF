@@ -14,9 +14,9 @@ from souwen.registry.adapter import SourceAdapter  # noqa: E402
 
 from superweb2pdf.errors import SuperWeb2PDFError  # noqa: E402
 from superweb2pdf.result import ConversionResult, PageInfo  # noqa: E402
-from superweb2pdf.souwen_client import SuperWeb2PdfClient  # noqa: E402
-from superweb2pdf.souwen_handler import superweb2pdf_fetch_handler  # noqa: E402
-from superweb2pdf.souwen_plugin import plugin as plugin_factory  # noqa: E402
+from superweb2pdf.souwen.client import SuperWeb2PdfClient  # noqa: E402
+from superweb2pdf.souwen.handler import superweb2pdf_fetch_handler  # noqa: E402
+from superweb2pdf.souwen.plugin import plugin as plugin_factory  # noqa: E402
 
 # plugin is now a factory function; call it to get the SourceAdapter
 plugin = plugin_factory()
@@ -94,7 +94,7 @@ class TestMockedConversion:
     @pytest.mark.asyncio
     async def test_fetch_single_url(self):
         with patch(
-            "superweb2pdf.souwen_client.convert_url",
+            "superweb2pdf.souwen.client.convert_url",
             return_value=_mock_result("https://example.com", pages=3),
         ):
             client = SuperWeb2PdfClient()
@@ -120,7 +120,7 @@ class TestMockedConversion:
     @pytest.mark.asyncio
     async def test_fetch_multiple_urls(self):
         with patch(
-            "superweb2pdf.souwen_client.convert_url",
+            "superweb2pdf.souwen.client.convert_url",
             side_effect=lambda url, **kw: _mock_result(url, pages=2),
         ):
             client = SuperWeb2PdfClient()
@@ -146,7 +146,7 @@ class TestMockedConversion:
                 output.write(b"x" * 100)
             return _mock_result(url)
 
-        with patch("superweb2pdf.souwen_client.convert_url", side_effect=fake_convert):
+        with patch("superweb2pdf.souwen.client.convert_url", side_effect=fake_convert):
             client = SuperWeb2PdfClient()
             await client.fetch(["https://example.com"], capture={"viewport_width": 1024})
 
@@ -164,7 +164,7 @@ class TestMockedConversion:
 
         # Pass a kwarg that from_dict accepts (capture is a recognised top-level
         # group); from_dict silently ignores unknown keys, so options is built.
-        with patch("superweb2pdf.souwen_client.convert_url", side_effect=fake_convert):
+        with patch("superweb2pdf.souwen.client.convert_url", side_effect=fake_convert):
             client = SuperWeb2PdfClient()
             await client.fetch(["https://example.com"], capture={"viewport_width": 800})
 
@@ -182,7 +182,7 @@ class TestHandler:
     @pytest.mark.asyncio
     async def test_handler_returns_fetch_response(self):
         with patch(
-            "superweb2pdf.souwen_client.convert_url",
+            "superweb2pdf.souwen.client.convert_url",
             return_value=_mock_result(),
         ):
             response = await superweb2pdf_fetch_handler(["https://example.com"])
@@ -204,7 +204,7 @@ class TestErrorHandling:
             time.sleep(2)
             return _mock_result(url)
 
-        with patch("superweb2pdf.souwen_client.convert_url", side_effect=slow_convert):
+        with patch("superweb2pdf.souwen.client.convert_url", side_effect=slow_convert):
             client = SuperWeb2PdfClient()
             response = await client.fetch(["https://example.com"], timeout=0.1)
 
@@ -215,7 +215,7 @@ class TestErrorHandling:
     @pytest.mark.asyncio
     async def test_superweb2pdf_error(self):
         with patch(
-            "superweb2pdf.souwen_client.convert_url",
+            "superweb2pdf.souwen.client.convert_url",
             side_effect=SuperWeb2PDFError("capture failed"),
         ):
             client = SuperWeb2PdfClient()
@@ -230,7 +230,7 @@ class TestErrorHandling:
     @pytest.mark.asyncio
     async def test_generic_exception(self):
         with patch(
-            "superweb2pdf.souwen_client.convert_url",
+            "superweb2pdf.souwen.client.convert_url",
             side_effect=RuntimeError("boom"),
         ):
             client = SuperWeb2PdfClient()
@@ -249,7 +249,7 @@ class TestErrorHandling:
                 raise RuntimeError("bad url")
             return _mock_result(url)
 
-        with patch("superweb2pdf.souwen_client.convert_url", side_effect=convert):
+        with patch("superweb2pdf.souwen.client.convert_url", side_effect=convert):
             client = SuperWeb2PdfClient()
             response = await client.fetch(["https://good.com", "https://bad.com"])
 
