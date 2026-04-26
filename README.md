@@ -306,8 +306,8 @@ souwen fetch https://example.com -p superweb2pdf
 或在 Python 代码中：
 
 ```python
-from souwen.web.fetch import fetch_urls
-result = await fetch_urls(["https://example.com"], provider="superweb2pdf")
+from souwen.web.fetch import fetch_content
+result = await fetch_content(["https://example.com"], providers=["superweb2pdf"])
 ```
 
 ### 对接规范

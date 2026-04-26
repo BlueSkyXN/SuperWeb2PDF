@@ -146,7 +146,7 @@ class TestMockedConversion:
         assert "options" in captured
 
     @pytest.mark.asyncio
-    async def test_fetch_invalid_kwargs_falls_back_to_none(self):
+    async def test_fetch_with_capture_kwargs_builds_options(self):
         captured = {}
 
         def fake_convert(url, output=None, options=None, progress=None):

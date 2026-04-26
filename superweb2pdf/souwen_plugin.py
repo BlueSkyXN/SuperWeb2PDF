@@ -21,3 +21,10 @@ plugin = SourceAdapter(
     default_enabled=True,
     tags=frozenset({"web2pdf", "external_plugin", "pdf"}),
 )
+
+# Auto-register fetch handler so `souwen fetch -p superweb2pdf` works
+try:
+    from superweb2pdf.souwen_handler import register as _register_handler
+    _register_handler()
+except Exception:
+    pass  # handler registration is optional; SouWen may not be installed
