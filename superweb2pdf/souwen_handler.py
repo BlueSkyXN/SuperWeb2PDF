@@ -1,9 +1,10 @@
 """可选 fetch handler — 支持 `souwen fetch -p superweb2pdf` 命令行调用。"""
 from __future__ import annotations
 
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
-from souwen.models import FetchResponse
+if TYPE_CHECKING:
+    from souwen.models import FetchResponse
 
 
 async def superweb2pdf_fetch_handler(

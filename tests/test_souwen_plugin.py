@@ -15,7 +15,10 @@ from superweb2pdf.errors import SuperWeb2PDFError  # noqa: E402
 from superweb2pdf.result import ConversionResult, PageInfo  # noqa: E402
 from superweb2pdf.souwen_client import SuperWeb2PdfClient  # noqa: E402
 from superweb2pdf.souwen_handler import superweb2pdf_fetch_handler  # noqa: E402
-from superweb2pdf.souwen_plugin import plugin  # noqa: E402
+from superweb2pdf.souwen_plugin import plugin as plugin_factory  # noqa: E402
+
+# plugin is now a factory function; call it to get the SourceAdapter
+plugin = plugin_factory()
 
 
 def _mock_result(url: str = "https://example.com", pages: int = 3) -> ConversionResult:
@@ -34,6 +37,13 @@ def _mock_result(url: str = "https://example.com", pages: int = 3) -> Conversion
 
 
 class TestPluginDeclaration:
+    def test_plugin_factory_is_callable(self):
+        assert callable(plugin_factory)
+
+    def test_plugin_factory_returns_source_adapter(self):
+        result = plugin_factory()
+        assert isinstance(result, SourceAdapter)
+
     def test_plugin_is_source_adapter(self):
         assert isinstance(plugin, SourceAdapter)
 
