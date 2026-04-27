@@ -6,7 +6,6 @@
 
 from __future__ import annotations
 
-from collections import Counter
 from collections.abc import Sequence
 from dataclasses import dataclass, field
 
@@ -16,16 +15,35 @@ from PIL import Image
 # Helpers
 # ---------------------------------------------------------------------------
 
-
-def _color_distance(c1: tuple[int, ...], c2: tuple[int, ...]) -> int:
-    """Chebyshev (L∞) distance between two RGB/RGBA colours."""
-    return max(abs(a - b) for a, b in zip(c1, c2))
+_MAX_ROW_SAMPLES = 1_000
 
 
-def _row_pixels(image: Image.Image, y: int, step: int = 1) -> list[tuple[int, ...]]:
+def _validate_image_dimensions(image: Image.Image) -> None:
+    """Reject degenerate images before doing geometry or pixel scans."""
+    if image.width <= 0 or image.height <= 0:
+        raise ValueError(f"Invalid image dimensions: {image.width}×{image.height}")
+
+
+def _normalise_pixel(pixel: tuple[int, ...] | int) -> tuple[int, ...]:
+    """Return *pixel* as a tuple so grayscale and RGB rows share one code path."""
+    return (pixel,) if isinstance(pixel, int) else pixel
+
+
+def _row_pixels(image: Image.Image, y: int, step: int = 1) -> list[tuple[int, ...] | int]:
     """Return sampled pixel tuples for row *y*, taking every *step*-th pixel."""
+    if step <= 0:
+        raise ValueError(f"step must be positive, got {step}")
+    if y < 0 or y >= image.height:
+        raise ValueError(f"row index out of range: {y}")
+
     width = image.width
-    return [image.getpixel((x, y)) for x in range(0, width, step)]
+    pixels = image.load()
+    if pixels is None:
+        raise ValueError("Cannot access image pixels")
+
+    # PixelAccess is substantially faster than repeated Image.getpixel() calls
+    # on very tall screenshots while keeping Pillow as the only dependency.
+    return [pixels[x, y] for x in range(0, width, step)]
 
 
 # ---------------------------------------------------------------------------
@@ -39,9 +57,8 @@ def is_blank_row(
 ) -> bool:
     """Decide whether a row of pixel values is effectively a single solid colour.
 
-    A row is considered *blank* when every sampled pixel is within *tolerance*
-    (Chebyshev distance) of the row's **mode** colour – i.e. the most common
-    pixel value.
+    A row is considered *blank* when each sampled channel remains within a
+    ``tolerance``-sized range across the row.
 
     Parameters
     ----------
@@ -49,27 +66,42 @@ def is_blank_row(
         Sequence of pixel values.  Each element is either an ``(R, G, B)`` /
         ``(R, G, B, A)`` tuple **or** a single int for greyscale images.
     tolerance:
-        Maximum per-channel difference allowed from the mode colour.
+        Maximum per-channel range allowed across sampled pixels.
 
     Returns
     -------
     bool
         ``True`` if the row is blank.
     """
+    if tolerance < 0:
+        raise ValueError(f"tolerance must be non-negative, got {tolerance}")
     if not row_pixels:
         return True
 
-    # Normalise scalars to 1-tuples so the rest of the logic is uniform.
-    first = row_pixels[0]
-    if isinstance(first, int):
-        pixels: list[tuple[int, ...]] = [(p,) if isinstance(p, int) else p for p in row_pixels]
-    else:
-        pixels = list(row_pixels)  # type: ignore[arg-type]
+    first = _normalise_pixel(row_pixels[0])
+    channel_count = len(first)
+    if channel_count == 0:
+        return True
 
-    # Mode = most common colour.
-    mode_color = Counter(pixels).most_common(1)[0][0]
+    min_values = list(first)
+    max_values = list(first)
 
-    return all(_color_distance(px, mode_color) <= tolerance for px in pixels)
+    # Avoid Counter(row) and a second full pass.  For a blank row, every sampled
+    # channel must stay within a tolerance-sized range.  Exit as soon as a row is
+    # known to contain meaningful content.
+    for pixel in row_pixels[1:]:
+        px = _normalise_pixel(pixel)
+        if len(px) != channel_count:
+            return False
+        for idx, value in enumerate(px):
+            if value < min_values[idx]:
+                min_values[idx] = value
+            elif value > max_values[idx]:
+                max_values[idx] = value
+            if max_values[idx] - min_values[idx] > tolerance:
+                return False
+
+    return True
 
 
 def find_blank_bands(
@@ -79,7 +111,8 @@ def find_blank_bands(
 ) -> list[tuple[int, int]]:
     """Scan *image* row-by-row and return contiguous blank bands.
 
-    For performance on wide images every 4th pixel is sampled per row.
+    For performance on wide images, rows are sampled with a bounded number of
+    pixels instead of reading every pixel in extremely wide screenshots.
 
     Parameters
     ----------
@@ -95,12 +128,18 @@ def find_blank_bands(
     list[tuple[int, int]]
         Each tuple is ``(start_y, end_y)`` **inclusive** on both ends.
     """
+    _validate_image_dimensions(image)
+    if tolerance < 0:
+        raise ValueError(f"tolerance must be non-negative, got {tolerance}")
+    if min_band_height <= 0:
+        raise ValueError(f"min_band_height must be positive, got {min_band_height}")
+
     if image.mode != "RGB":
         image = image.convert("RGB")
 
     bands: list[tuple[int, int]] = []
     band_start: int | None = None
-    sample_step = 4
+    sample_step = max(1, image.width // _MAX_ROW_SAMPLES)
 
     for y in range(image.height):
         pixels = _row_pixels(image, y, step=sample_step)
@@ -138,10 +177,10 @@ def find_split_points(
     1. Place *ideal* cut lines at multiples of *max_page_height*.
     2. Around each ideal position open a search window of
        ``±search_ratio * max_page_height``.
-    3. Score every blank band inside the window by
-       ``band_height × proximity_weight`` where *proximity_weight* falls
+    3. Score every overlapping blank-band segment inside the window by
+       ``overlap_height × proximity_weight`` where *proximity_weight* falls
        linearly from 1.0 at the ideal position to 0.0 at the window edge.
-    4. Pick the centre of the highest-scoring band.
+    4. Pick the highest-scoring cut location inside that segment.
     5. If no band is found → hard-cut at the ideal position.
 
     Parameters
@@ -164,8 +203,15 @@ def find_split_points(
         Sorted y-coordinates of split lines (excluding ``0`` and
         ``image.height``).
     """
+    _validate_image_dimensions(image)
     if max_page_height <= 0:
         raise ValueError(f"max_page_height must be positive, got {max_page_height}")
+    if min_blank_band <= 0:
+        raise ValueError(f"min_blank_band must be positive, got {min_blank_band}")
+    if tolerance < 0:
+        raise ValueError(f"tolerance must be non-negative, got {tolerance}")
+    if search_ratio < 0:
+        raise ValueError(f"search_ratio must be non-negative, got {search_ratio}")
 
     if image.mode != "RGB":
         image = image.convert("RGB")
@@ -175,7 +221,7 @@ def find_split_points(
         return []
 
     # Pre-compute all blank bands once across the whole image.
-    all_bands = (
+    raw_bands = (
         _precomputed_bands
         if _precomputed_bands is not None
         else find_blank_bands(
@@ -184,6 +230,11 @@ def find_split_points(
             min_band_height=min_blank_band,
         )
     )
+    all_bands = [
+        (max(0, start), min(total_height - 1, end))
+        for start, end in raw_bands
+        if start <= end and end >= 0 and start < total_height
+    ]
 
     half_window = int(search_ratio * max_page_height)
     split_points: list[int] = []
@@ -197,28 +248,44 @@ def find_split_points(
         win_lo = max(ideal - half_window, previous_cut + 1)
         win_hi = min(ideal + half_window, total_height - 1)
 
-        # Collect candidate bands that overlap with the search window.
+        # Collect candidate bands that overlap with the search window.  The
+        # chosen cut is clamped to the overlap with the current search window,
+        # which prevents boundary/very large bands from producing duplicate or
+        # backwards cuts and therefore avoids zero-height pages.
         candidates: list[tuple[float, int]] = []
         for band_start, band_end in all_bands:
             # Band must overlap the window.
             if band_end < win_lo or band_start > win_hi:
                 continue
 
-            band_height = band_end - band_start + 1
-            band_centre = (band_start + band_end) // 2
+            overlap_start = max(band_start, win_lo)
+            overlap_end = min(band_end, win_hi)
+            if overlap_start > overlap_end:
+                continue
+
+            overlap_height = overlap_end - overlap_start + 1
+            cut_candidate = min(max(ideal, overlap_start), overlap_end)
 
             # Proximity weight: 1.0 at ideal, 0.0 at window edge.
-            distance = abs(band_centre - ideal)
+            distance = abs(cut_candidate - ideal)
             proximity_weight = max(0.0, 1.0 - distance / half_window) if half_window > 0 else 1.0
 
-            score = band_height * proximity_weight
-            candidates.append((score, band_centre))
+            score = overlap_height * proximity_weight
+            candidates.append((score, cut_candidate))
 
         if candidates:
             candidates.sort(key=lambda c: c[0], reverse=True)
             cut_y = candidates[0][1]
         else:
             cut_y = ideal  # hard cut
+
+        # Defensive guard against malformed precomputed bands or pathological
+        # search windows.  A split point must always make forward progress and
+        # must never be the image bottom boundary.
+        if cut_y <= previous_cut:
+            cut_y = previous_cut + 1
+        if cut_y >= total_height:
+            break
 
         split_points.append(cut_y)
         previous_cut = cut_y
@@ -262,6 +329,10 @@ def split_image(
 
     All extra keyword arguments are forwarded to :func:`find_split_points`.
     """
+    _validate_image_dimensions(image)
+    if max_page_height <= 0:
+        raise ValueError(f"max_page_height must be positive, got {max_page_height}")
+
     if image.mode != "RGB":
         image = image.convert("RGB")
 
@@ -270,6 +341,8 @@ def split_image(
     search_ratio = kwargs.get("search_ratio", 0.2)
 
     total_height = image.height
+    if total_height <= max_page_height:
+        return SplitResult(split_points=[], page_heights=[total_height], total_height=total_height)
 
     # Compute blank bands once, reuse for both split finding and hard-cut detection.
     all_bands = find_blank_bands(

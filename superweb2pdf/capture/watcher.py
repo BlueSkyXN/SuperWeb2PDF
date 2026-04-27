@@ -10,16 +10,33 @@ import os
 import sys
 import threading
 from pathlib import Path
+from typing import Callable
 
 try:
     from watchdog.events import FileSystemEventHandler
     from watchdog.observers import Observer
 except ImportError:
-    raise ImportError("watchdog is required for --watch mode. Install: pip install watchdog")
+    Observer = None
+
+    class FileSystemEventHandler:  # type: ignore[no-redef]
+        """Fallback base class so importing this module does not require watchdog."""
+
+        pass
+
 
 IMAGE_EXTENSIONS: set[str] = {".png", ".jpg", ".jpeg", ".webp", ".bmp", ".tiff"}
 
 DEBOUNCE_SECONDS: float = 1.0
+
+ProcessFn = Callable[[str, str], None]
+
+
+def _load_watchdog() -> None:
+    """Raise a friendly error if watchdog is unavailable for watch mode."""
+    if Observer is None:
+        raise RuntimeError(
+            "watchdog is required for --watch mode. Install it with:\n    pip install watchdog"
+        )
 
 
 class _ImageEventHandler(FileSystemEventHandler):
@@ -29,7 +46,7 @@ class _ImageEventHandler(FileSystemEventHandler):
         self,
         watch_dir: Path,
         output_dir: Path,
-        process_fn: callable | None,
+        process_fn: ProcessFn | None,
         verbose: bool,
         stats: dict[str, int],
     ) -> None:
@@ -58,7 +75,7 @@ class _ImageEventHandler(FileSystemEventHandler):
 
     def _schedule(self, path: str) -> None:
         """Debounce: wait before processing so the file finishes writing."""
-        file_path = Path(path)
+        file_path = Path(path).resolve()
 
         if not self._is_eligible(file_path):
             return
@@ -82,6 +99,18 @@ class _ImageEventHandler(FileSystemEventHandler):
         if file_path.suffix.lower() not in IMAGE_EXTENSIONS:
             return False
 
+        try:
+            file_path.relative_to(self._watch_dir)
+        except ValueError:
+            return False
+
+        if self._output_dir != self._watch_dir:
+            try:
+                file_path.relative_to(self._output_dir)
+                return False
+            except ValueError:
+                pass
+
         # Skip files inside any directory named "output"
         for parent in file_path.relative_to(self._watch_dir).parents:
             if parent.name == "output":
@@ -102,14 +131,17 @@ class _ImageEventHandler(FileSystemEventHandler):
         if self._verbose:
             print(f"  ⏳ Processing {file_path.name} …", file=sys.stderr)
 
-        if self._process_fn is None:
+        with self._lock:
+            process_fn = self._process_fn
+
+        if process_fn is None:
             print(f"  (dry-run) {file_path} → {output_pdf}")
             with self._lock:
                 self._stats["processed"] += 1
             return
 
         try:
-            self._process_fn(str(file_path), str(output_pdf))
+            process_fn(str(file_path), str(output_pdf))
             with self._lock:
                 self._stats["processed"] += 1
             if self._verbose:
@@ -130,7 +162,7 @@ class _ImageEventHandler(FileSystemEventHandler):
 def watch_directory(
     watch_dir: str,
     output_dir: str | None = None,
-    process_fn: callable = None,
+    process_fn: ProcessFn | None = None,
     verbose: bool = False,
 ) -> None:
     """Watch *watch_dir* for new images and process them into PDFs.
@@ -145,6 +177,8 @@ def watch_directory(
                     If *None*, runs in dry-run mode (prints actions only).
         verbose:    Print filesystem events to stderr.
     """
+    _load_watchdog()
+
     watch_path = Path(watch_dir).resolve()
 
     if not watch_path.is_dir():
@@ -155,6 +189,20 @@ def watch_directory(
         out_path = Path(output_dir).resolve()
     else:
         out_path = watch_path.parent / "output"
+
+    try:
+        output_relative = out_path.relative_to(watch_path)
+        print(
+            "Warning: output directory is inside the watched directory; "
+            "generated files will be ignored to prevent processing loops."
+            if output_relative != Path(".")
+            else "Warning: output directory is the watched directory; generated "
+            "PDF files are ignored by extension, but avoid generating images "
+            "there to prevent processing loops.",
+            file=sys.stderr,
+        )
+    except ValueError:
+        pass
 
     os.makedirs(out_path, exist_ok=True)
 

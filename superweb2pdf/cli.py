@@ -3,20 +3,53 @@
 from __future__ import annotations
 
 import argparse
+import logging
 import os
 import subprocess
 import sys
-from pathlib import Path
+from importlib.metadata import PackageNotFoundError, version
+from pathlib import Path, PureWindowsPath
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from superweb2pdf.options import WebToPdfOptions
+    from superweb2pdf.progress import ProgressCallback
+
+logger = logging.getLogger(__name__)
+
+
+def _package_version() -> str:
+    """Return the installed package version, with a source-tree fallback."""
+    try:
+        return version("superweb2pdf")
+    except PackageNotFoundError:
+        from superweb2pdf import __version__
+
+        return __version__
+
+
+def _path_for_user_input(value: str) -> Path | PureWindowsPath:
+    """Return a path object that preserves Windows paths during string parsing.
+
+    ``Path`` uses the current platform's path flavour.  On POSIX, a Windows
+    path such as ``C:\\screens\\*.png`` would otherwise be treated as a single
+    filename containing backslashes, which produces poor automatic output names.
+    """
+    windows_path = PureWindowsPath(value)
+    if windows_path.drive or "\\" in value:
+        return windows_path
+    return Path(value)
 
 
 def auto_output_name(args: argparse.Namespace) -> str:
     """Derive output PDF name from the input source."""
     if args.image:
-        return str(Path(args.image).with_suffix(".pdf"))
+        return str(_path_for_user_input(args.image).with_suffix(".pdf"))
     if args.images:
         pattern = args.images
-        base = Path(pattern).stem.replace("*", "output")
-        parent = Path(pattern).parent
+        pattern_path = _path_for_user_input(pattern)
+        base = pattern_path.stem.replace("*", "output") or "output"
+        parent = pattern_path.parent
         return str(parent / f"{base}.pdf")
     if args.current_tab or args.url:
         from datetime import datetime
@@ -36,6 +69,12 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     parser = argparse.ArgumentParser(
         prog="superweb2pdf",
         description="Convert full-page web screenshots into intelligently paginated PDFs.",
+    )
+    parser.add_argument(
+        "--version",
+        action="version",
+        version=f"%(prog)s {_package_version()}",
+        help="Show version and exit",
     )
 
     # --- Capture options (mutually exclusive) ---
@@ -57,6 +96,12 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
         type=int,
         metavar="PORT",
         help="Connect via CDP to Chrome on PORT (use with --url, or alone to capture current page)",
+    )
+    capture.add_argument(
+        "--backend",
+        choices=["auto", "file", "headless", "cdp", "macos"],
+        default="auto",
+        help="Capture backend to use (default: auto)",
     )
 
     # --- Processing options ---
@@ -105,8 +150,15 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
 
     # --- Output options ---
     out = parser.add_argument_group("Output")
-    out.add_argument("-o", "--output", metavar="FILE", help="Output PDF path")
-    out.add_argument("--open", action="store_true", help="Open PDF after generation (macOS)")
+    out.add_argument(
+        "-o",
+        "--output",
+        metavar="PATH",
+        help="Output PDF path (directory when used with --watch)",
+    )
+    out.add_argument("--open", action="store_true", help="Open PDF after generation")
+    out.add_argument("--json", action="store_true", help="Output result as JSON")
+    out.add_argument("--page-numbers", action="store_true", help="Add page numbers to PDF")
     out.add_argument("-v", "--verbose", action="store_true", help="Show detailed progress")
 
     args = parser.parse_args(argv)
@@ -121,10 +173,7 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
             )
 
     # --cdp without --url means "capture current CDP page"
-    if args.cdp and not args.url:
-        args._cdp_current_page = True
-    else:
-        args._cdp_current_page = getattr(args, "_cdp_current_page", False)
+    args._cdp_current_page = bool(args.cdp and not args.url)
 
     # Validate numeric arguments
     if args.max_width is not None and args.max_width <= 0:
@@ -141,6 +190,42 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
         parser.error("--scroll-delay must be non-negative")
     if args.cdp is not None and args.cdp <= 0:
         parser.error("--cdp port must be a positive integer")
+
+    # Validate paper size at parse time so users get an argparse-style message.
+    from superweb2pdf.core.pdf_builder import parse_paper_size
+
+    try:
+        parse_paper_size(args.paper)
+    except ValueError as exc:
+        parser.error(f"--paper: {exc}")
+
+    if args.current_tab and sys.platform != "darwin":
+        parser.error(
+            "--current-tab is only supported on macOS. "
+            "Use --url for headless capture or --cdp PORT to capture an existing browser page."
+        )
+
+    if args.images:
+        from superweb2pdf.core.image_utils import glob_images
+
+        if not glob_images(args.images):
+            parser.error(
+                f"--images pattern matched no supported image files: {args.images!r}. "
+                "Check the path/pattern and quote wildcards if your shell expands them."
+            )
+
+    if args.watch and args.output:
+        output_path = Path(args.output)
+        if output_path.exists() and not output_path.is_dir():
+            parser.error(
+                "--output must be a directory when used with --watch; "
+                f"got existing file: {args.output}"
+            )
+        if not output_path.exists() and output_path.suffix.lower() == ".pdf":
+            parser.error(
+                "--output must be a directory when used with --watch; "
+                f"got file-like path: {args.output}"
+            )
 
     return args
 
@@ -187,13 +272,24 @@ def _run_watch_mode(args: argparse.Namespace) -> None:
             )
             page_images = crop_pages(image, result.split_points)
 
+        output_path = Path(output_pdf)
+        try:
+            output_path.parent.mkdir(parents=True, exist_ok=True)
+        except OSError as exc:
+            raise OSError(
+                f"Cannot create output directory {output_path.parent}: {exc.strerror or exc}"
+            ) from exc
+
         if args.auto_size:
-            build_pdf_auto_size(page_images, output_pdf, dpi=args.dpi)
+            build_pdf_auto_size(page_images, output_path, dpi=args.dpi)
         else:
             paper = parse_paper_size(args.paper)
-            build_pdf(page_images, output_pdf, paper_size=paper, dpi=args.dpi)
+            build_pdf(page_images, output_path, paper_size=paper, dpi=args.dpi)
 
-        print(f"✓ {Path(image_path).name} → {Path(output_pdf).name} ({len(page_images)} pages)")
+        print(
+            f"✓ {Path(image_path).name} → {output_path.name} ({len(page_images)} pages)",
+            file=sys.stderr,
+        )
 
     watch_directory(
         watch_dir=args.watch,
@@ -203,148 +299,175 @@ def _run_watch_mode(args: argparse.Namespace) -> None:
     )
 
 
+def _infer_backend(args: argparse.Namespace) -> str:
+    """Infer the capture backend from CLI args.
+
+    If the user explicitly set --backend, use that.  Otherwise, --cdp with
+    --url implies the cdp backend so the port is respected.
+    """
+    explicit = getattr(args, "backend", "auto") or "auto"
+    if explicit != "auto":
+        return explicit
+    if args.cdp and args.url:
+        return "cdp"
+    return "auto"
+
+
+def _build_options(args: argparse.Namespace) -> WebToPdfOptions:
+    """Convert CLI args to WebToPdfOptions."""
+    from superweb2pdf.options import CaptureOptions, PdfOptions, SplitOptions, WebToPdfOptions
+
+    capture = CaptureOptions(
+        backend=_infer_backend(args),
+        scroll_delay_ms=args.scroll_delay,
+        cdp_port=args.cdp or 9222,
+    )
+    split = SplitOptions(
+        mode=args.split,
+        max_width=args.max_width,
+        max_height=args.max_height,
+        blank_threshold=args.blank_threshold,
+        min_blank_band=args.min_blank_band,
+    )
+    pdf = PdfOptions(
+        paper=args.paper,
+        dpi=args.dpi,
+        auto_size=args.auto_size,
+        page_numbers=getattr(args, "page_numbers", False),
+    )
+    return WebToPdfOptions(capture=capture, split=split, pdf=pdf)
+
+
+def _determine_source(args: argparse.Namespace) -> str:
+    """Extract the source string from CLI args."""
+    if args.image:
+        return args.image
+    if args.images:
+        return args.images
+    if args.current_tab:
+        return "current-tab"
+    if args.url:
+        return args.url
+    if getattr(args, "_cdp_current_page", False):
+        return "cdp://current"
+    raise SystemExit("Error: no input source specified.")
+
+
+def _make_progress_callback(verbose: bool) -> ProgressCallback | None:
+    """Create a stderr progress callback for verbose mode."""
+    if not verbose:
+        return None
+
+    def _progress(event) -> None:
+        parts = [f"[{event.stage}]", event.message]
+        if event.percent is not None:
+            parts.append(f"({event.percent:.0f}%)")
+        elif event.current is not None and event.total is not None:
+            parts.append(f"({event.current}/{event.total})")
+        logger.info(" ".join(parts))
+
+    return _progress
+
+
+def _open_pdf(path: str | Path | None) -> None:
+    """Open a generated PDF using the current platform's default application."""
+    if path is None:
+        return
+    output = str(path)
+    try:
+        if sys.platform == "win32":
+            os.startfile(output)  # type: ignore[attr-defined]
+        elif sys.platform == "darwin":
+            subprocess.run(["open", output], check=True)
+        elif sys.platform.startswith("linux"):
+            subprocess.run(["xdg-open", output], check=True)
+        else:
+            import webbrowser
+
+            if not webbrowser.open(output):
+                raise OSError("no suitable opener available")
+    except FileNotFoundError:
+        opener = "xdg-open" if sys.platform.startswith("linux") else "system opener"
+        print(
+            f"Warning: PDF was saved but could not be opened automatically "
+            f"({opener} not found). Open it manually: {output}",
+            file=sys.stderr,
+        )
+    except (OSError, subprocess.CalledProcessError) as exc:
+        print(
+            f"Warning: PDF was saved but could not be opened automatically: {exc}",
+            file=sys.stderr,
+        )
+
+
 def main(argv: list[str] | None = None) -> None:
     """CLI entry point."""
-    try:
-        args = parse_args(argv)
-    except SystemExit:
-        raise
+    args = parse_args(argv)
 
-    # Lazy imports so argparse --help stays fast
-    from superweb2pdf.capture.file_input import capture_from_file, capture_from_files
-    from superweb2pdf.core.image_utils import crop_pages, resize_to_max_width
-    from superweb2pdf.core.pdf_builder import (
-        build_pdf,
-        build_pdf_auto_size,
-        parse_paper_size,
+    logging.basicConfig(
+        level=logging.DEBUG if args.verbose else logging.WARNING,
+        format="%(message)s",
+        stream=sys.stderr,
     )
-    from superweb2pdf.core.splitter import split_image
+
+    if args.watch:
+        try:
+            _run_watch_mode(args)
+        except KeyboardInterrupt:
+            print("\nInterrupted.", file=sys.stderr)
+            sys.exit(130)
+        return
+
+    options = _build_options(args)
+    source = _determine_source(args)
+    progress_cb = _make_progress_callback(args.verbose)
+
+    from superweb2pdf.api import convert
+    from superweb2pdf.errors import SuperWeb2PDFError
 
     try:
-        # 1. Capture / load image
-        if args.watch:
-            # --watch mode runs a long-lived loop; handled separately
-            _run_watch_mode(args)
-            return
-
-        if args.image:
-            if args.verbose:
-                print(f"Loading {args.image} …", file=sys.stderr)
-            image = capture_from_file(args.image)
-        elif args.images:
-            if args.verbose:
-                print(f"Loading images matching {args.images} …", file=sys.stderr)
-            image = capture_from_files(args.images)
-        elif args.current_tab:
-            if args.verbose:
-                print("Capturing Chrome current tab …", file=sys.stderr)
-            from superweb2pdf.capture.applescript import capture_current_tab
-
-            image = capture_current_tab(
-                scroll_delay_ms=args.scroll_delay,
-                verbose=args.verbose,
-            )
-        elif args.url and args.cdp:
-            if args.verbose:
-                print(f"Capturing {args.url} via CDP (port {args.cdp}) …", file=sys.stderr)
-            from superweb2pdf.capture.cdp import capture_via_cdp
-
-            image = capture_via_cdp(
-                url=args.url,
-                cdp_port=args.cdp,
-                scroll_delay_ms=args.scroll_delay,
-                verbose=args.verbose,
-            )
-        elif args.url:
-            if args.verbose:
-                print(f"Capturing {args.url} (headless) …", file=sys.stderr)
-            from superweb2pdf.capture.headless import capture_url
-
-            image = capture_url(
-                url=args.url,
-                scroll_delay_ms=args.scroll_delay,
-                verbose=args.verbose,
-            )
-        elif getattr(args, "_cdp_current_page", False):
-            if args.verbose:
-                print(f"Capturing current CDP page (port {args.cdp}) …", file=sys.stderr)
-            from superweb2pdf.capture.cdp import capture_via_cdp
-
-            image = capture_via_cdp(
-                url=None,
-                cdp_port=args.cdp,
-                scroll_delay_ms=args.scroll_delay,
-                verbose=args.verbose,
-            )
-        else:
-            print("Error: no input source specified.", file=sys.stderr)
-            sys.exit(1)
-
-        if args.verbose:
-            print(f"Image size: {image.width}×{image.height}", file=sys.stderr)
-
-        # 2. Resize if needed
-        if args.max_width:
-            image = resize_to_max_width(image, args.max_width)
-            if args.verbose:
-                print(f"Resized to {image.width}×{image.height}", file=sys.stderr)
-
-        # 3. Calculate max page height
-        if args.max_height:
-            max_page_height = args.max_height
-        else:
-            paper_w, paper_h = parse_paper_size(args.paper)
-            aspect = paper_h / paper_w
-            max_page_height = int(image.width * aspect)
-
-        if args.verbose:
-            print(f"Max page height: {max_page_height}px", file=sys.stderr)
-
-        # 4. Split
-        if args.split == "none":
-            page_images = [image]
-        elif args.split == "fixed":
-            split_pts = list(range(max_page_height, image.height, max_page_height))
-            page_images = crop_pages(image, split_pts)
-        else:  # smart
-            result = split_image(
-                image,
-                max_page_height,
-                min_blank_band=args.min_blank_band,
-                tolerance=args.blank_threshold,
-            )
-            page_images = crop_pages(image, result.split_points)
-            if args.verbose:
-                print(
-                    f"Split into {len(page_images)} pages ({len(result.hard_cuts)} hard cuts)",
-                    file=sys.stderr,
-                )
-
-        # 5. Generate PDF
-        output = args.output or auto_output_name(args)
-        os.makedirs(Path(output).parent or ".", exist_ok=True)
-
-        if args.auto_size:
-            build_pdf_auto_size(page_images, output, dpi=args.dpi)
-        else:
-            paper = parse_paper_size(args.paper)
-            build_pdf(page_images, output, paper_size=paper, dpi=args.dpi)
-
-        print(f"✓ Saved {len(page_images)} pages to {output}")
-
-        # 6. Open if requested
-        if args.open:
-            subprocess.run(["open", output], check=False)
-
+        result = convert(
+            source,
+            args.output or auto_output_name(args),
+            options=options,
+            progress=progress_cb,
+        )
+    except SuperWeb2PDFError as exc:
+        print(f"Error: {exc}", file=sys.stderr)
+        sys.exit(1)
     except KeyboardInterrupt:
         print("\nInterrupted.", file=sys.stderr)
         sys.exit(130)
     except FileNotFoundError as exc:
         print(f"Error: {exc}", file=sys.stderr)
         sys.exit(1)
-    except Exception as exc:
+    except PermissionError as exc:
+        print(
+            f"Error: permission denied: {exc}. "
+            "Check the output directory permissions or choose a different --output path.",
+            file=sys.stderr,
+        )
+        sys.exit(1)
+    except OSError as exc:
+        print(
+            f"Error: filesystem error: {exc}. "
+            "Check that the output path exists, is writable, and has enough free space.",
+            file=sys.stderr,
+        )
+        sys.exit(1)
+    except (ValueError, RuntimeError, ImportError) as exc:
         print(f"Error: {exc}", file=sys.stderr)
         sys.exit(1)
+
+    if args.json:
+        import json
+
+        print(json.dumps(result.to_dict(), indent=2))
+    else:
+        print(f"✓ Saved {result.page_count} pages to {result.output_path}")
+
+    if args.open:
+        _open_pdf(result.output_path)
 
 
 if __name__ == "__main__":

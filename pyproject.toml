@@ -4,15 +4,30 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "superweb2pdf"
-version = "0.1.0"
+version = "0.2.0"
 description = "Convert full-page web screenshots to intelligently paginated PDFs"
 license = {text = "GPL-3.0-or-later"}
 authors = [{name = "BlueSkyXN"}]
 requires-python = ">=3.10"
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "License :: OSI Approved :: GNU General Public License v3 or later (GPLv3+)",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Topic :: Multimedia :: Graphics :: Capture",
+    "Topic :: Text Processing :: Markup :: HTML",
+]
 dependencies = [
     "Pillow>=12.0",
     "reportlab>=4.0",
 ]
+
+[project.urls]
+Repository = "https://github.com/BlueSkyXN/SuperWeb2PDF"
+Issues = "https://github.com/BlueSkyXN/SuperWeb2PDF/issues"
 
 [project.optional-dependencies]
 capture = [
@@ -21,15 +36,28 @@ capture = [
 watch = [
     "watchdog>=4.0",
 ]
+souwen = [
+    "souwen>=0.1.0",
+]
+dev = [
+    "pytest>=8.0",
+]
 all = [
-    "superweb2pdf[capture,watch]",
+    "superweb2pdf[capture,watch,souwen]",
 ]
 
 [project.scripts]
 superweb2pdf = "superweb2pdf.cli:main"
 
+[project.entry-points."souwen.plugins"]
+superweb2pdf = "superweb2pdf.souwen.plugin:plugin"
+
 [tool.setuptools.packages.find]
 include = ["superweb2pdf*"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+python_files = ["test_*.py"]
 
 [tool.ruff]
 line-length = 100
@@ -49,3 +77,8 @@ ignore = [
 [tool.ruff.format]
 quote-style = "double"
 indent-style = "space"
+
+[tool.coverage.run]
+omit = [
+    "superweb2pdf/souwen/*",
+]

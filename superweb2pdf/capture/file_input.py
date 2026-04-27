@@ -5,22 +5,18 @@
 
 from __future__ import annotations
 
-import re
 from pathlib import Path
 
 from PIL import Image
 
 from superweb2pdf.core.image_utils import (
+    IMAGE_EXTENSIONS,
+    _natural_sort_key,
     glob_images,
     load_image,
     load_images,
     stitch_vertical,
 )
-
-
-def _natural_sort_key(path: Path) -> list[int | str]:
-    """Return a sort key that orders filenames naturally (e.g. img2 < img10)."""
-    return [int(part) if part.isdigit() else part.lower() for part in re.split(r"(\d+)", path.name)]
 
 
 def capture_from_file(path: str | Path) -> Image.Image:
@@ -44,11 +40,13 @@ def capture_from_file(path: str | Path) -> Image.Image:
         raise ValueError(f"Path is not a file: {path}")
 
     try:
-        img = load_image(path)
+        return load_image(path)
     except Exception as exc:
-        raise ValueError(f"Cannot open image file: {path}") from exc
-
-    return img.convert("RGB")
+        raise ValueError(
+            f"Cannot open image file: {path}. "
+            f"Supported formats: {', '.join(sorted(IMAGE_EXTENSIONS))}. "
+            f"Original error: {exc}"
+        ) from exc
 
 
 def capture_from_files(pattern: str) -> Image.Image:
@@ -66,7 +64,10 @@ def capture_from_files(pattern: str) -> Image.Image:
     paths = glob_images(pattern)
 
     if not paths:
-        raise FileNotFoundError(f"No image files match pattern: {pattern}")
+        raise FileNotFoundError(
+            f"No supported image files match pattern: {pattern}. "
+            f"Supported formats: {', '.join(sorted(IMAGE_EXTENSIONS))}"
+        )
 
     images = load_images(paths)
     return stitch_vertical(images)
@@ -92,14 +93,16 @@ def capture_from_directory(directory: str | Path) -> Image.Image:
     if not directory.is_dir():
         raise NotADirectoryError(f"Path is not a directory: {directory}")
 
-    image_extensions = {".png", ".jpg", ".jpeg", ".webp", ".bmp", ".tiff", ".gif"}
     image_paths = sorted(
-        (p for p in directory.iterdir() if p.is_file() and p.suffix.lower() in image_extensions),
+        (p for p in directory.iterdir() if p.is_file() and p.suffix.lower() in IMAGE_EXTENSIONS),
         key=_natural_sort_key,
     )
 
     if not image_paths:
-        raise FileNotFoundError(f"No image files found in directory: {directory}")
+        raise FileNotFoundError(
+            f"No supported image files found in directory: {directory}. "
+            f"Supported formats: {', '.join(sorted(IMAGE_EXTENSIONS))}"
+        )
 
     images = load_images(image_paths)
     return stitch_vertical(images)
