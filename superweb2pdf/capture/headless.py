@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """Playwright 无头 Chromium 截图后端
 
 启动无头 Chromium 访问 URL，自动滚动触发懒加载，返回全页截图。
@@ -15,10 +14,10 @@ import sys
 
 from PIL import Image
 
-
 # ---------------------------------------------------------------------------
 # Internal helpers
 # ---------------------------------------------------------------------------
+
 
 def _launch_browser(playwright):
     """Launch headless Chromium, raising a friendly error on failure."""
@@ -49,9 +48,7 @@ def _auto_scroll(page, scroll_delay_ms: int, verbose: bool) -> None:
     page.wait_for_timeout(delay_ms)
 
     viewport_height = page.evaluate("window.innerHeight") or 800
-    scroll_height = (
-        page.evaluate("document.documentElement.scrollHeight") or viewport_height
-    )
+    scroll_height = page.evaluate("document.documentElement.scrollHeight") or viewport_height
     pos = 0
 
     while pos < scroll_height:
@@ -91,6 +88,7 @@ def _auto_scroll(page, scroll_delay_ms: int, verbose: bool) -> None:
 # ---------------------------------------------------------------------------
 # Public API
 # ---------------------------------------------------------------------------
+
 
 def capture_url(
     url: str,
@@ -135,10 +133,7 @@ def capture_url(
         if verbose:
             print(msg, file=sys.stderr)
 
-    _log(
-        "Launching headless Chromium "
-        f"(viewport: {viewport_width}×{viewport_height}px)…"
-    )
+    _log(f"Launching headless Chromium (viewport: {viewport_width}×{viewport_height}px)…")
 
     with sync_playwright() as pw:
         browser = _launch_browser(pw)
@@ -157,13 +152,9 @@ def capture_url(
                 except PWTimeoutError:
                     _log("Network did not become idle; continuing after DOM load")
             except PWTimeoutError:
-                raise RuntimeError(
-                    f"Timed out waiting for page to load: {url}"
-                )
+                raise RuntimeError(f"Timed out waiting for page to load: {url}")
             except Exception as exc:
-                raise RuntimeError(
-                    f"Failed to navigate to {url}: {exc}"
-                ) from exc
+                raise RuntimeError(f"Failed to navigate to {url}: {exc}") from exc
 
             _log(f"Page loaded: {page.title()}")
 

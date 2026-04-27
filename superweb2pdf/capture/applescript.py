@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """AppleScript + Quartz 截图后端（macOS Chrome）
 
 通过 AppleScript 控制 Chrome 滚动 + Quartz CGWindowListCreateImage 逐屏截图，
@@ -58,6 +57,7 @@ def _require_macos() -> None:
 # AppleScript helpers
 # ---------------------------------------------------------------------------
 
+
 def run_applescript(script: str, args: list[str] | None = None) -> str:
     """Execute an AppleScript snippet and return its stdout result.
 
@@ -71,9 +71,7 @@ def run_applescript(script: str, args: list[str] | None = None) -> str:
         text=True,
     )
     if result.returncode != 0:
-        raise RuntimeError(
-            f"AppleScript failed (rc={result.returncode}): {result.stderr.strip()}"
-        )
+        raise RuntimeError(f"AppleScript failed (rc={result.returncode}): {result.stderr.strip()}")
     return result.stdout.strip()
 
 
@@ -140,6 +138,7 @@ end run
 # ---------------------------------------------------------------------------
 # Page inspection / scrolling
 # ---------------------------------------------------------------------------
+
 
 def get_page_dimensions() -> dict:
     """Return page geometry from the active Chrome tab.
@@ -261,6 +260,7 @@ def auto_scroll_for_lazy_loading(scroll_delay_ms: int = 800) -> None:
 # Quartz window capture
 # ---------------------------------------------------------------------------
 
+
 def _cgimage_to_pil(cgimage) -> Image.Image:
     """Convert a Quartz CGImage to a PIL RGB Image."""
     Quartz = _quartz()
@@ -270,13 +270,9 @@ def _cgimage_to_pil(cgimage) -> Image.Image:
     bits_per_pixel = Quartz.CGImageGetBitsPerPixel(cgimage)
 
     if bits_per_pixel != 32:
-        raise RuntimeError(
-            f"Unsupported Quartz pixel depth: {bits_per_pixel} bits per pixel"
-        )
+        raise RuntimeError(f"Unsupported Quartz pixel depth: {bits_per_pixel} bits per pixel")
 
-    pixel_data = Quartz.CGDataProviderCopyData(
-        Quartz.CGImageGetDataProvider(cgimage)
-    )
+    pixel_data = Quartz.CGDataProviderCopyData(Quartz.CGImageGetDataProvider(cgimage))
     bitmap_info = Quartz.CGImageGetBitmapInfo(cgimage)
     byte_order = bitmap_info & Quartz.kCGBitmapByteOrderMask
     alpha_info = bitmap_info & Quartz.kCGBitmapAlphaInfoMask
@@ -302,13 +298,10 @@ def _cgimage_to_pil(cgimage) -> Image.Image:
         raw_mode = "RGBA"
     else:
         raise RuntimeError(
-            "Unsupported Quartz bitmap layout "
-            f"(byte_order={byte_order}, alpha_info={alpha_info})"
+            f"Unsupported Quartz bitmap layout (byte_order={byte_order}, alpha_info={alpha_info})"
         )
 
-    img = Image.frombytes(
-        "RGBA", (width, height), pixel_data, "raw", raw_mode, bytes_per_row, 1
-    )
+    img = Image.frombytes("RGBA", (width, height), pixel_data, "raw", raw_mode, bytes_per_row, 1)
     return img.convert("RGB")
 
 
@@ -322,17 +315,14 @@ def _get_chrome_window_number() -> int:
     """
     Quartz = _quartz()
     windows = Quartz.CGWindowListCopyWindowInfo(
-        Quartz.kCGWindowListOptionOnScreenOnly
-        | Quartz.kCGWindowListExcludeDesktopElements,
+        Quartz.kCGWindowListOptionOnScreenOnly | Quartz.kCGWindowListExcludeDesktopElements,
         Quartz.kCGNullWindowID,
     )
     for w in windows:
         if w.get("kCGWindowOwnerName") == "Google Chrome":
             if w.get("kCGWindowLayer", 0) == 0:
                 return w["kCGWindowNumber"]
-    raise RuntimeError(
-        "No Chrome window found on screen. Is Chrome running and not minimised?"
-    )
+    raise RuntimeError("No Chrome window found on screen. Is Chrome running and not minimised?")
 
 
 def capture_chrome_window() -> Image.Image:
@@ -343,8 +333,7 @@ def capture_chrome_window() -> Image.Image:
         Quartz.CGRectNull,
         Quartz.kCGWindowListOptionIncludingWindow,
         wid,
-        Quartz.kCGWindowImageBoundsIgnoreFraming
-        | Quartz.kCGWindowImageBestResolution,
+        Quartz.kCGWindowImageBoundsIgnoreFraming | Quartz.kCGWindowImageBestResolution,
     )
     if cgimage is None:
         raise RuntimeError(
@@ -357,6 +346,7 @@ def capture_chrome_window() -> Image.Image:
 # ---------------------------------------------------------------------------
 # Content-area cropping
 # ---------------------------------------------------------------------------
+
 
 def calculate_content_crop(
     window_image: Image.Image,
@@ -407,6 +397,7 @@ def calculate_content_crop(
 # Full-page capture orchestration
 # ---------------------------------------------------------------------------
 
+
 def capture_current_tab(
     scroll_delay_ms: int = 800,
     verbose: bool = False,
@@ -426,6 +417,7 @@ def capture_current_tab(
     Returns:
         A PIL Image of the full page content.
     """
+
     def _log(msg: str) -> None:
         if verbose:
             print(msg, file=sys.stderr)
@@ -440,10 +432,7 @@ def capture_current_tab(
     viewport_w = dims["clientWidth"]
     dpr = dims["devicePixelRatio"]
     scroll_h = dims["scrollHeight"]
-    _log(
-        f"Viewport: {viewport_w}×{viewport_h}  "
-        f"Page height: {scroll_h}  DPR: {dpr}"
-    )
+    _log(f"Viewport: {viewport_w}×{viewport_h}  Page height: {scroll_h}  DPR: {dpr}")
 
     try:
         _prepare_page_for_capture()
@@ -472,11 +461,7 @@ def capture_current_tab(
             time.sleep(0.2)  # let Chrome render
             actual_y = get_scroll_y()
 
-            if (
-                last_actual_y is not None
-                and actual_y <= last_actual_y
-                and scroll_h > viewport_h
-            ):
+            if last_actual_y is not None and actual_y <= last_actual_y and scroll_h > viewport_h:
                 raise RuntimeError(
                     "The page reports more content than one viewport but does "
                     "not scroll. It may use a custom scroll container or locked "

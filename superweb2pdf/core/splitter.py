@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """智能分页引擎 — SuperWeb2PDF 核心模块
 
 分析全页网页截图，在空白/背景区域找到最优切割点，
@@ -7,11 +6,10 @@
 
 from __future__ import annotations
 
+from collections.abc import Sequence
 from dataclasses import dataclass, field
-from typing import Sequence
 
 from PIL import Image
-
 
 # ---------------------------------------------------------------------------
 # Helpers
@@ -51,6 +49,7 @@ def _row_pixels(image: Image.Image, y: int, step: int = 1) -> list[tuple[int, ..
 # ---------------------------------------------------------------------------
 # Public API
 # ---------------------------------------------------------------------------
+
 
 def is_blank_row(
     row_pixels: Sequence[tuple[int, ...] | int],
@@ -222,8 +221,14 @@ def find_split_points(
         return []
 
     # Pre-compute all blank bands once across the whole image.
-    raw_bands = _precomputed_bands if _precomputed_bands is not None else find_blank_bands(
-        image, tolerance=tolerance, min_band_height=min_blank_band,
+    raw_bands = (
+        _precomputed_bands
+        if _precomputed_bands is not None
+        else find_blank_bands(
+            image,
+            tolerance=tolerance,
+            min_band_height=min_blank_band,
+        )
     )
     all_bands = [
         (max(0, start), min(total_height - 1, end))
@@ -292,6 +297,7 @@ def find_split_points(
 # Result container
 # ---------------------------------------------------------------------------
 
+
 @dataclass
 class SplitResult:
     """Outcome of :func:`split_image`."""
@@ -312,6 +318,7 @@ class SplitResult:
 # ---------------------------------------------------------------------------
 # Convenience wrapper
 # ---------------------------------------------------------------------------
+
 
 def split_image(
     image: Image.Image,
@@ -339,7 +346,9 @@ def split_image(
 
     # Compute blank bands once, reuse for both split finding and hard-cut detection.
     all_bands = find_blank_bands(
-        image, tolerance=tolerance, min_band_height=min_blank_band,
+        image,
+        tolerance=tolerance,
+        min_band_height=min_blank_band,
     )
 
     split_points = find_split_points(

@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """CDP (Chrome DevTools Protocol) 截图后端
 
 连接已运行的 Chrome 实例，通过 CDP 协议截取全页截图。
@@ -21,10 +20,10 @@ import urllib.request
 
 from PIL import Image
 
-
 # ---------------------------------------------------------------------------
 # CDP availability check
 # ---------------------------------------------------------------------------
+
 
 def check_cdp_available(port: int = 9222, timeout: float = 0.5) -> bool:
     """Return *True* if a CDP endpoint is reachable on *port*.
@@ -45,6 +44,7 @@ def check_cdp_available(port: int = 9222, timeout: float = 0.5) -> bool:
 # ---------------------------------------------------------------------------
 # Internal helpers
 # ---------------------------------------------------------------------------
+
 
 def _auto_scroll(page, scroll_delay_ms: int, verbose: bool) -> None:
     """Scroll through the full page to trigger lazy-loaded content."""
@@ -107,6 +107,7 @@ def _select_page(browser):
 # ---------------------------------------------------------------------------
 # Main capture function
 # ---------------------------------------------------------------------------
+
 
 def capture_via_cdp(
     url: str | None,
@@ -176,9 +177,7 @@ def capture_via_cdp(
             # -- Optionally resize viewport ------------------------------------
             if viewport_width is not None:
                 current_height = page.evaluate("window.innerHeight") or 900
-                page.set_viewport_size(
-                    {"width": viewport_width, "height": current_height}
-                )
+                page.set_viewport_size({"width": viewport_width, "height": current_height})
                 _log(f"Viewport width set to {viewport_width}px")
 
             # -- Navigate if URL provided --------------------------------------

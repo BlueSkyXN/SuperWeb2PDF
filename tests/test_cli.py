@@ -109,13 +109,13 @@ def test_cdp_alone_is_allowed_and_marks_current_page_mode():
     args = parse_args(["--cdp", "9222"])
 
     assert args.cdp == 9222
-    assert args.capture_mode == "cdp-current"
+    assert args._cdp_current_page is True
 
 
 def test_cdp_with_url_does_not_mark_current_page_mode():
     args = parse_args(["--url", "https://example.com", "--cdp", "9222"])
 
-    assert args.capture_mode == "url-cdp"
+    assert args._cdp_current_page is False
 
 
 def test_no_input_is_an_error():

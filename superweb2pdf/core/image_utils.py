@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """图片加载、拼接与处理工具
 
 提供截图加载、纵向拼接、缩放、分页裁切、glob 自然排序等功能。
@@ -200,9 +199,7 @@ def crop_pages(
         if not isinstance(point, int):
             raise TypeError(f"Split point must be an integer, got {type(point).__name__}")
         if point < 0 or point > image.height:
-            raise ValueError(
-                f"Split point {point} is outside image bounds 0..{image.height}"
-            )
+            raise ValueError(f"Split point {point} is outside image bounds 0..{image.height}")
         # Boundary cuts are harmless inputs but must not produce empty pages.
         if point in (0, image.height):
             continue

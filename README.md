@@ -51,7 +51,7 @@ superweb2pdf --current-tab -o page.pdf --open
 pip install -e .
 ```
 
-依赖：**Pillow** ≥ 12.0、**reportlab** ≥ 4.0。Python ≥ 3.11。
+依赖：**Pillow** ≥ 12.0、**reportlab** ≥ 4.0。Python ≥ 3.10。
 
 ### 可选依赖
 
@@ -272,6 +272,48 @@ python -m pytest tests/ -v
 2. 创建功能分支：`git checkout -b feature/your-feature`
 3. 提交更改并推送
 4. 发起 Pull Request
+
+## 🔌 SouWen 集成
+
+SuperWeb2PDF 可作为 [SouWen](https://github.com/BlueSkyXN/SouWen) 的外部插件自动注册，
+为 SouWen 的多源搜索系统提供网页截图转 PDF 功能。
+
+### 安装方式
+
+**方式一：从 SouWen 侧安装（推荐）**
+
+```bash
+pip install "souwen[web2pdf]"
+```
+
+**方式二：独立安装后自动发现**
+
+```bash
+pip install souwen
+pip install "superweb2pdf[capture]"
+```
+
+两种方式都会通过 setuptools entry_points 自动注册到 SouWen。
+
+### 使用
+
+安装后可通过 SouWen CLI 调用：
+
+```bash
+souwen fetch https://example.com -p superweb2pdf
+```
+
+或在 Python 代码中：
+
+```python
+from souwen.web.fetch import fetch_content
+result = await fetch_content(["https://example.com"], providers=["superweb2pdf"])
+```
+
+### 对接规范
+
+如需了解 SouWen 插件系统的完整对接规范，请参考：
+[SouWen Plugin Integration Spec](https://github.com/BlueSkyXN/SouWen/blob/main/docs/plugin-integration-spec.md)
 
 ## 许可证
 

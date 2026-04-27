@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """文件输入捕获模块
 
 从本地文件、glob 模式或目录加载图片，返回 PIL Image 供后续处理。
@@ -95,11 +94,7 @@ def capture_from_directory(directory: str | Path) -> Image.Image:
         raise NotADirectoryError(f"Path is not a directory: {directory}")
 
     image_paths = sorted(
-        (
-            p
-            for p in directory.iterdir()
-            if p.is_file() and p.suffix.lower() in IMAGE_EXTENSIONS
-        ),
+        (p for p in directory.iterdir() if p.is_file() and p.suffix.lower() in IMAGE_EXTENSIONS),
         key=_natural_sort_key,
     )
 

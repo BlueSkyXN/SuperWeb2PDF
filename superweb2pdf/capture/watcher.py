@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """文件夹监控模块
 
 监控指定目录的新图片文件，通过回调函数自动处理为 PDF。
@@ -14,8 +13,8 @@ from pathlib import Path
 from typing import Callable
 
 try:
-    from watchdog.observers import Observer
     from watchdog.events import FileSystemEventHandler
+    from watchdog.observers import Observer
 except ImportError:
     Observer = None
 
@@ -23,6 +22,7 @@ except ImportError:
         """Fallback base class so importing this module does not require watchdog."""
 
         pass
+
 
 IMAGE_EXTENSIONS: set[str] = {".png", ".jpg", ".jpeg", ".webp", ".bmp", ".tiff"}
 
@@ -35,8 +35,7 @@ def _load_watchdog() -> None:
     """Raise a friendly error if watchdog is unavailable for watch mode."""
     if Observer is None:
         raise RuntimeError(
-            "watchdog is required for --watch mode. Install it with:\n"
-            "    pip install watchdog"
+            "watchdog is required for --watch mode. Install it with:\n    pip install watchdog"
         )
 
 
@@ -222,9 +221,7 @@ def watch_directory(
     observer.start()
 
     print(
-        f"👀 Watching {watch_path}\n"
-        f"   Output → {out_path}\n"
-        f"   Press Ctrl+C to stop.",
+        f"👀 Watching {watch_path}\n   Output → {out_path}\n   Press Ctrl+C to stop.",
         file=sys.stderr,
     )
 
