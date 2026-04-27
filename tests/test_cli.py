@@ -1,4 +1,5 @@
 import argparse
+import sys
 
 import pytest
 
@@ -30,6 +31,7 @@ def test_parse_args_url_source():
     assert args.url == "https://example.com"
 
 
+@pytest.mark.skipif(sys.platform != "darwin", reason="--current-tab is macOS only")
 def test_parse_args_current_tab_source():
     args = parse_args(["--current-tab"])
 
@@ -76,17 +78,23 @@ def test_numeric_argument_validation(argv):
 
 class TestAutoOutputName:
     def test_image_input_uses_same_stem(self):
-        args = argparse.Namespace(image="screens/page.png", images=None, current_tab=False, url=None)
+        args = argparse.Namespace(
+            image="screens/page.png", images=None, current_tab=False, url=None
+        )
 
         assert auto_output_name(args) == "screens/page.pdf"
 
     def test_images_pattern_replaces_wildcard_in_stem(self):
-        args = argparse.Namespace(image=None, images="screens/page-*.png", current_tab=False, url=None)
+        args = argparse.Namespace(
+            image=None, images="screens/page-*.png", current_tab=False, url=None
+        )
 
         assert auto_output_name(args) == "screens/page-output.pdf"
 
     def test_url_input_includes_hostname(self):
-        args = argparse.Namespace(image=None, images=None, current_tab=False, url="https://example.com/path")
+        args = argparse.Namespace(
+            image=None, images=None, current_tab=False, url="https://example.com/path"
+        )
 
         output = auto_output_name(args)
         assert output.startswith("superweb2pdf-example.com-")

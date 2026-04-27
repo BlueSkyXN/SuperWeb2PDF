@@ -139,4 +139,7 @@ class TestSplitImage:
     def test_huge_tolerance_does_not_duplicate_or_loop_on_blank_image(self):
         img = Image.new("RGB", (4, 250), "white")
 
-        assert find_split_points(img, max_page_height=100, tolerance=255, min_blank_band=1) == [100, 200]
+        assert find_split_points(img, max_page_height=100, tolerance=255, min_blank_band=1) == [
+            100,
+            200,
+        ]
